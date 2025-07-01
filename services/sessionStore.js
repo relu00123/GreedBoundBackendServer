@@ -21,10 +21,21 @@ function removeSession(token) {
   sessionMap.delete(token);
 }
 
+function isUserLoggedIn(username) {
+  for (const session of sessionMap.values()) {
+    if (session.username === username) {
+      return true;
+    }
+  }
+
+  return false; 
+}
+
 module.exports = {
   saveSession,
   getSession,
   updateSession,
   removeSession,
   sessionMap,
+  isUserLoggedIn,
 };

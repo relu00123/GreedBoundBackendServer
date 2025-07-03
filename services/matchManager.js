@@ -30,6 +30,7 @@ function addToMatchQueue(username, token) {
       if (session?.ws && session.ws.readyState === session.ws.OPEN) {
         session.ws.send(JSON.stringify({
           type: "matchSuccess",
+          host : "127.0.0.1", // or 공인 IP 
           port,
           dungeonId,
         }));

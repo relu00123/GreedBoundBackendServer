@@ -23,19 +23,34 @@ function removeSession(token) {
 
 function isUserLoggedIn(username) {
   for (const session of sessionMap.values()) {
-    if (session.username === username) {
+    if (session.username === username && session.isDedicated !== true) {
       return true;
     }
   }
+  return false;
+}
 
-  return false; 
+function isDedicatedLoggedIn(dungeonId) {
+  for (const session of sessionMap.values()) {
+    if (session.isDedicated === true && session.dungeonId === dungeonId) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isSessionOfClient(token) {
+  const session = sessionMap.get(token);
+  return session && session.isDedicated !== true;
 }
 
 module.exports = {
-  saveSession,
+    saveSession,
   getSession,
   updateSession,
   removeSession,
   sessionMap,
   isUserLoggedIn,
+  isDedicatedLoggedIn,        
+  isSessionOfClient  
 };

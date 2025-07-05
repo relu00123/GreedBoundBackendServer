@@ -1,7 +1,7 @@
 // services/matchManager.js
 
 const PlayerState = require("../constants/playerstate");
-const { updateSession, sessionMap } = require("./sessionStore");
+const { updateSession,  getSession, sessionMap } = require("./sessionStore");
 const { launchDungeonServer } = require("./dungeonManager");
 
 let matchQueue = [];
@@ -17,7 +17,7 @@ function addToMatchQueue(username, token) {
   if (matchQueue.length >= 2) { // 테스트 용도로 2명
     const matched = matchQueue.splice(0, 2);
     const dungeonId = `Dungeon_${String(dungeonIdCounter++).padStart(3, '0')}`;
-    const prot = launchDungeonServer(dungeonId);
+    const port = launchDungeonServer(dungeonId);
 
     matched.forEach(({ username, token }) => {
       updateSession(token, {

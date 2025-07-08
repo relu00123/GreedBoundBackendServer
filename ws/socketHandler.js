@@ -1,8 +1,8 @@
 // ws/socketHandler.js
 
 const jwt = require("jsonwebtoken");
-const { getSession, updateSession, sessionMap } = require("../services/sessionStore");
-const escapeManager = require("../services/escapeManager"); // ← 서버 전용 메시지 처리기
+const { getSession, updateSession, sessionMap } = require("../services/managers/sessionStore");
+const escapeManager = require("../services/managers/escapeManager"); // ← 서버 전용 메시지 처리기
 
 function setupSocket(wss) {
   wss.on("connection", (ws, req) => {
@@ -34,7 +34,7 @@ function setupSocket(wss) {
 
       // 연결 분기
       if (isDedicated) {
-        setupDedicatedServerHandlers(ws, session);
+        setupDedicatedServerHandlers(ws, session); 
       } else {
         setupClientHandlers(ws, session);
       }
@@ -92,6 +92,11 @@ function setupDedicatedServerHandlers(ws, session) {
         case "leave_dungeon":
           escapeManager.handleLeaveDungeon(ws, msg);
           break;
+        
+        case "escape_request":
+          escapeManager.handleEscapeRequest(ws, msg);
+          break;
+
 
         // TODO: 추후 other server-side messages
         default:

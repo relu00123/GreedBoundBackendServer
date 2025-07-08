@@ -17,6 +17,22 @@ function updateSession(token, patch) {
   }
 }
 
+function updateSessionSafe(token, patch) {
+  const existing = sessionMap.get(token);
+  if (!existing) return;
+
+  const protectedKeys = ["username", "isDedicated", "ws"];
+  const updated = { ...existing };
+
+  for (const key of Object.keys(patch)) {
+    if (!protectedKeys.includes(key)) {
+      updated[key] = patch[key];
+    }
+  }
+
+  sessionMap.set(token, updated);
+}
+
 function removeSession(token) {
   sessionMap.delete(token);
 }

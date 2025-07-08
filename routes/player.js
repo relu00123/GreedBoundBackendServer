@@ -1,7 +1,7 @@
 // routes/player.js
 const express = require("express");
 const router = express.Router();
-const { sessionMap } = require("../services/sessionStore");
+const { sessionMap } = require("../services/managers/sessionStore");
 
 router.get("/:username/status", (req, res) => {
   const username = req.params.username;

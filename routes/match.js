@@ -3,9 +3,9 @@
 const express = require("express");
 const router = express.Router();
 const authenticateToken = require("../middleware/auth");
-const { getSession } = require("../services/sessionStore");
+const { getSession } = require("../services/managers/sessionStore");
 const PlayerState = require("../constants/playerstate");
-const { addToMatchQueue } = require("../services/matchManager");
+const { addToMatchQueue } = require("../services/managers/matchManager");
 
 // 클라 -> 서버로 게임시작을 하고 싶을때 사용하는 라우터 
 router.post("/start", authenticateToken, (req, res) => {

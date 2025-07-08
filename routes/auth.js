@@ -11,7 +11,7 @@ const {
   removeSession,
   getSession,
   isUserLoggedIn,
-} = require("../services/sessionStore");
+} = require("../services/managers/sessionStore");
 
 const PlayerState = {
   IDLE: "Idle",

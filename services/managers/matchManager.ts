@@ -1,14 +1,25 @@
-// services/matchManager.js
+// services/matchManager.ts
 
+//import { PlayerState } from "../../constants/playerstate";
 const PlayerState = require("../../constants/playerstate");
-const { updateSession,  getSession, sessionMap } = require("./sessionStore");
-const { DungeonManager } = require("./DungeonManager");
+import { updateSession, getSession, sessionMap} from "./sessionStore";
+// const { updateSession,  getSession, sessionMap } = require("./sessionStore");
+import {DungeonManager } from "./DungeonManager";
+//const { DungeonManager } = require("./DungeonManager");
 
-let matchQueue = [ ];
-let dungeons = {};
-let dungeonIdCounter = 1;
+interface MatchEntry {
+  username : string;
+  token : string;
+}
 
-function addToMatchQueue(username, token) { 
+let matchQueue : MatchEntry[] = [];
+let dungeons : Record<string, any> = {};
+let dungeonIdCounter : number = 1;
+//let dungeons = {};
+//let dungeonIdCounter = 1;
+
+export function addToMatchQueue(username: string, token: string) : void 
+{ 
   matchQueue.push({ username, token });
   updateSession(token, { state: PlayerState.MATCHING });
 

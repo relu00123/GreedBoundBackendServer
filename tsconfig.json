@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",                // 최신 JS 문법으로 트랜스파일
+    "module": "CommonJS",              // Node.js에서 사용하는 모듈 시스템
+    "rootDir": "./",                   // ts 파일들이 있는 루트 경로
+    "outDir": "dist",                  // 컴파일된 js 파일들이 나올 폴더
+    "esModuleInterop": true,          // import x from '...' 지원
+    "strict": true,                   // 타입 체크 강화 (권장)
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true              // node_modules 타입 체크 생략
+  },
+  "include": ["**/*.ts", "env.d.ts"],             // ts 파일 컴파일 대상
+  "exclude": ["node_modules", "dist"] // 컴파일에서 제외
+}

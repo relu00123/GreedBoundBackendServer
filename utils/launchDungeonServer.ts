@@ -19,8 +19,8 @@ export function launchDungeonServer(mapType: MapType, instanceNumber : number) :
     const generatedDungeonPort = portCounter++;
 
     // 나중에 이쪽부분 config 파일의 constant에서 온전히 가져와야함.. 
-    const createdDedicatedServerInstance = spawn("cmd.exe", ["/c", SERVER_CONFIG.batFilePath, generatedDungeonToken, 
-        generatedDungeonInstanceName, generatedDungeonPort.toString()], {
+    const createdDedicatedServerInstance = spawn("cmd.exe", ["/c", SERVER_CONFIG.batFilePath, generatedDungeonInstanceName, 
+        generatedDungeonPort.toString(), generatedDungeonToken], {
         // 이 옵션들에대해서는 잘 알지 못함.. GPT가 적어둔 것을 가져왔음. 
         // cwd : 지금 생성하려고하는 프로세스가 어느 디렉토리에서 실행될지를 지정하는 옵션. 생략시에는 Node.js가 실행중인 디렉토리를 기준으로 bat를 실행 
         cwd : SERVER_CONFIG.batFileDir, 
@@ -30,7 +30,7 @@ export function launchDungeonServer(mapType: MapType, instanceNumber : number) :
         // inherit : 부모의 콘솔 I/O를 그대로 사용 
         // ignore : 자식 프로세스의 stdin, stdout, stderr를 무시 (콘솔에 출력 안됨)
         // pipe : 부모가 자식의 stdout/stderr를 프로그래밍적으로 읽을 수 있게함 
-        stdio : "ignore"
+        stdio : "inherit"
     });
 
     // Node.js의 이벤트 루프가 이 프로세스를 기다리지 않도록 만드는 함수라고 한다.

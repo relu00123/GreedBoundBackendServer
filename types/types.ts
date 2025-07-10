@@ -1,4 +1,5 @@
 // types.ts
+import { WebSocket as WSWebSocket } from "ws";
 
 // Token
 export type DungeonToken = string;
@@ -12,4 +13,5 @@ export type DungeonSession = {
   mapType : MapType;
   instanceNumber : number;
   players: PlayerToken[];
+  ws? : WSWebSocket;
 };

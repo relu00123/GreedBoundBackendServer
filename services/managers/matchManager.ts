@@ -33,15 +33,16 @@ export function addToMatchQueue(username: string, token: string) : void
        
 
     // 일단 임시로.. 
-    const port =  DungeonManager.getInstance("...").createDungeon("Goblin", playerTokens);
+    const { generatedDungeonToken, generatedDungeonPort } =  DungeonManager.getInstance("...").createDungeon("Goblin", playerTokens);
     //const {dungeontoken, port} = launchDungeonServer(dungeonId);
+    console.log(`🚀 [DungeonManager] 포트 ${generatedDungeonPort} 에서, Goblin 던전 생성됨. 던전 ID는 ${dungeonId}`);
 
     matched.forEach(({ username, token }) => {
       // 클라이언트의 Session을 업데이트함. 
       updateSession(token, {
         state: PlayerState.GAME,
         dungeonId,
-        port,
+        generatedDungeonPort,
       });
 
       const session = getSession(token);
@@ -49,17 +50,18 @@ export function addToMatchQueue(username: string, token: string) : void
         session.ws.send(JSON.stringify({
           type: "matchSuccess",
           host : "127.0.0.1", // or 공인 IP 
-          port,
+          port : generatedDungeonPort,
           dungeonId,
         }));
         console.log(`📨 [Match Notify] ${username}에게 matchSuccess 전송`);
+
       }
     });
 
     dungeons[dungeonId] = {
       players: matched.map(m => m.username),
       createdAt: new Date(),
-      port,
+      generatedDungeonPort,
     };
 
      console.log(`🎮 [Dungeon Created] ${dungeonId} → 입장 인원: ${matched.map(m => m.username).join(", ")}`);

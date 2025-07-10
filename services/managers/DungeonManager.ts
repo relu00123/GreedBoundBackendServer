@@ -2,7 +2,8 @@
 
 import { launchDungeonServer } from "../../utils/launchDungeonServer";
 import { DungeonSessionStore } from "../stores/DungeonSessionStore";
-import { MapType, PlayerToken, DungeonToken} from "../../types/types"
+import { MapType, PlayerToken, DungeonToken, DungeonSession} from "../../types/types"
+import { WebSocket as WSWebSocket } from "ws";
 
 export class DungeonManager {
     private static _instance : DungeonManager | null = null;
@@ -26,7 +27,7 @@ export class DungeonManager {
     }
 
     // 던전 생성 
-    public createDungeon(mapType : MapType, playerTokens : PlayerToken[]) : number
+    public createDungeon(mapType : MapType, playerTokens : PlayerToken[]) : { generatedDungeonToken : string ; generatedDungeonPort : number; } 
     {
         // 1. mapType에 대한 인스턴스 번호 증가
         const prevInstance = this.instanceCounters[mapType] ?? 0;
@@ -39,12 +40,28 @@ export class DungeonManager {
         // 3. 만들어진 DungeonSession 저장
         this.dungeonSessionStore.createDungeonSession(generatedDungeonToken, playerTokens, mapType, instanceNumber);
 
-        return generatedDungeonPort;
+        return { generatedDungeonToken , generatedDungeonPort};
     }
 
     // 던전 삭제
     public deleteDungeon(dungeonToken : DungeonToken) 
     {
+        // 실행중인 DedicatedServer를 종료해야한다. 
+
         this.dungeonSessionStore.deleteSession(dungeonToken);
+    }
+
+    // 소캣등록 
+    public registerDedicatedSocket(token : DungeonToken, ws : WSWebSocket) : boolean {
+        const session = this.dungeonSessionStore.getDungeonSession(token);
+        if (!session) return false;
+
+        session.ws= ws;
+        return true;
+    }
+
+
+    public hasDungeon(token: string): boolean {
+        return this.dungeonSessionStore.getDungeonSession(token) !== undefined;
     }
 }

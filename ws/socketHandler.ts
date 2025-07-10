@@ -2,6 +2,7 @@ import WebSocket, { WebSocketServer } from "ws";     // ✔ 실제 모듈 import
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { getSession, updateSession, sessionMap, Session } from "../services/managers/sessionStore";
 import { handleEscapeRequest, handleLeaveDungeon, LeaveDungeonMessage, EscapeRequestMessage } from "../services/managers/escapeManager";
+import { DungeonManager } from "../services/managers/DungeonManager";
 
 
 // interface Session {
@@ -28,32 +29,53 @@ export function setupSocket(wss: WebSocketServer) {
       return;
     }
 
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-      const session = getSession(token) as Session;
+    const RealToken = token;
 
-      if (!session) {
-        ws.send(JSON.stringify({ error: "Invalid or expired session" }));
-        ws.close();
+    try {
+      //const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
+
+      if (DungeonManager.getInstance("...").hasDungeon(RealToken))
+      {
+        console.log(`🔌 [SocketHandler] Trying To Setup DedicatedWebSocket`); 
+        // DedicatedServer에서 접속시도
+        const success = DungeonManager.getInstance("...").registerDedicatedSocket(RealToken, ws);
+
+        setupDedicatedServerHandlersTemp(ws);
+
+        ws.on("close", () => {
+          console.log(`🔌 [DedicatedWebSocket] ... disconnected`); 
+        });
+
         return;
       }
 
-      session.ws = ws;
-      updateSession(token, session);
-      const isDedicated = session.isDedicated === true;
+      else
+      {
+        console.log(`🔌 [SocketHandler] Trying To Setup ClientWebSocket`); 
+        const session = getSession(RealToken) as Session; 
+        if (!session) {
+                ws.send(JSON.stringify({ error: "Invalid or expired session" }));
+                ws.close();
+                return;
+              }
 
-      console.log(`✅ [WebSocket] ${session.username} connected (${isDedicated ? "Dedicated" : "Client"})`);
+              session.ws = ws;
+              updateSession(RealToken, session);
+              const isDedicated = session.isDedicated === true;
 
-      if (isDedicated) {
-        setupDedicatedServerHandlers(ws, session);
-      } else {
-        setupClientHandlers(ws, session);
+              console.log(`✅ [WebSocket] ${session.username} connected (${isDedicated ? "Dedicated" : "Client"})`);
+
+              if (isDedicated) {
+                setupDedicatedServerHandlers(ws, session);
+              } else {
+                setupClientHandlers(ws, session);
+              }
+
+              ws.on("close", () => {
+                console.log(`🔌 [ClientWebSocket] ${session.username} disconnected`);
+                updateSession(RealToken, { ws: null });
+              });
       }
-
-      ws.on("close", () => {
-        console.log(`🔌 [WebSocket] ${session.username} disconnected`);
-        updateSession(token, { ws: null });
-      });
     } catch (err) {
       console.error("❌ Invalid token:", err);
       ws.send(JSON.stringify({ error: "Invalid token" }));
@@ -93,6 +115,31 @@ function setupClientHandlers(ws: WebSocket, session: Session) {
 }
 
 function setupDedicatedServerHandlers(ws: WebSocket, session: Session) {
+  ws.on("message", (data) => {
+    try {
+      const msg: Message = JSON.parse(data.toString());
+
+      switch (msg.type) {
+        case "leave_dungeon":
+          const leaveMsg = msg as unknown as LeaveDungeonMessage;
+           handleLeaveDungeon(ws, leaveMsg);
+          break;
+
+        case "escape_request":
+          const escapeMsg = msg as unknown as EscapeRequestMessage;
+          handleEscapeRequest(ws, escapeMsg);
+          break;
+
+        default:
+          console.warn("⚠️ Unknown server message type:", msg.type);
+      }
+    } catch (err) {
+      console.error("❌ [Dedicated] Invalid message:", err);
+    }
+  });
+}
+
+function setupDedicatedServerHandlersTemp(ws : WebSocket) {
   ws.on("message", (data) => {
     try {
       const msg: Message = JSON.parse(data.toString());

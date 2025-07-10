@@ -94,4 +94,8 @@ export class DungeonSessionStore {
         this.sessions.delete(dungeonToken);
         console.log(`[DungeonSessionStore] 던전 인스턴스 제거 완료 : ${dungeonToken}`);
     }
+
+    public getDungeonSession(token : DungeonToken) : DungeonSession | undefined {
+        return this.sessions.get(token);
+    }
 }

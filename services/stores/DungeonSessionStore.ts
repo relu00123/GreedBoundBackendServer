@@ -1,6 +1,7 @@
 // stores/dungeonSessionStore.ts
 
 import { DungeonToken, PlayerToken, DungeonSession, MapType} from "../../types/types";
+import { WebSocket as WSWebSocket } from "ws";
 
 export class DungeonSessionStore {
     private sessions = new Map<DungeonToken, DungeonSession>();
@@ -95,7 +96,14 @@ export class DungeonSessionStore {
         console.log(`[DungeonSessionStore] 던전 인스턴스 제거 완료 : ${dungeonToken}`);
     }
 
-    public getDungeonSession(token : DungeonToken) : DungeonSession | undefined {
+    public getDungeonSession(token : DungeonToken) : Readonly<DungeonSession> | undefined {
         return this.sessions.get(token);
+    }
+
+    public registerSocket(token : DungeonToken, ws : WSWebSocket) : boolean {
+        const dungeonsession = this.sessions.get(token);
+        if (!dungeonsession) return false;
+        dungeonsession.ws = ws;
+        return true;
     }
 }

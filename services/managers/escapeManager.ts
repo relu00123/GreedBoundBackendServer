@@ -6,120 +6,44 @@ import {
   Session
 } from "./sessionStore";
 
-export interface LeaveDungeonMessage {
-  playerId: string;
-  token: string;
-  dungeonId: string;
-  status: string; // "escaped" | "dead"
-  timestamp: number;
-}
-
 export interface EscapeRequestMessage {
-  characterId: string;
-  token: string;
-  dungeonId: string;
-  status: string; // "escaped" | "dead"
-  timestamp: number;
+  type : string; 
+  payload : {
+    dungeonToken : string;
+    playerToken : string;
+  };
 }
 
-// 플레이어 탈출 요청 처리 (기존)
-function handleLeaveDungeon(ws: WebSocket, msg: LeaveDungeonMessage) {
-  try {
-    const { playerId, token, dungeonId, status } = msg;
-
-    const session = getSession(token) as Session | undefined;
-
-    if (!session || session.isDedicated !== true) {
-      console.warn(`❌ [탈출 거부] 유효하지 않은 Dedicated 세션: token=${token}`);
-      ws.send(JSON.stringify({
-        type: "leave_dungeon_response",
-        success: false,
-        message: "Invalid or unauthorized session"
-      }));
-      return;
-    }
-
-    if (!playerId || !dungeonId || !status) {
-      console.warn(`❌ [탈출 거부] 필드 누락`);
-      ws.send(JSON.stringify({
-        type: "leave_dungeon_response",
-        success: false,
-        message: "Missing required fields"
-      }));
-      return;
-    }
-
-    // 성공 응답
-    ws.send(JSON.stringify({
-      type: "leave_dungeon_response",
-      success: true,
-      message: `Player ${playerId} reported as ${status}`
-    }));
-
-    console.log(`✅ [탈출 처리 완료] PlayerID: ${playerId}, Status: ${status}, DungeonID: ${dungeonId}`);
-  } catch (err) {
-    console.error("❌ [handleLeaveDungeon] 오류:", err);
-    ws.send(JSON.stringify({
-      type: "leave_dungeon_response",
-      success: false,
-      message: "Internal server error"
-    }));
-  }
-}
-
-// Escape 요청 처리 (신규)
 function handleEscapeRequest(ws: WebSocket, msg: EscapeRequestMessage) {
   try {
-    const { characterId, token, dungeonId, status } = msg;
+    const { dungeonToken, playerToken} = msg.payload;
 
-    const session = getSession(token) as Session | undefined;
+    console.log(`[EscapeManager] Trying To Handle Escape Request..`);
+    // console.log(`🟢 [EscapeRequest] DungeonToken: ${dungeonToken}`);
+    // console.log(`🟢 [EscapeRequest] PlayerToken : ${playerToken}`);
 
-    if (!session || session.isDedicated !== true) {
-      console.warn(`❌ [탈출 거부] 유효하지 않은 세션: token=${token}`);
-      ws.send(JSON.stringify({
-        type: "escape_response",
-        success: false,
-        message: "Invalid session"
-      }));
+    // 1. DungeonSessionStore에서 해당 DungeonSession에서 플레이어를 빼줘야 함.
+    // 아직 DungeonSession에 PlayerList를 채우는 로직이 없어서 이부분은 나중에 해줘야 함.
+
+    // 2. PlayerSession의 ws를 찾아 해당 Player에게 로비로 가라고 해야함. 
+    // PlayerSession을 리팩토링 할 것이기 때문에 일단 임시 로직이다. 
+    const session = getSession(playerToken) as Session | undefined;
+
+    if (!session || !session.ws) {
+      console.warn(`[EscapeResponse] ❌ 유효하지 않은 세션: ${playerToken}`);
       return;
     }
-
-    if (!characterId || !dungeonId || !status) {
-      console.warn(`❌ [탈출 거부] 필드 누락`);
-      ws.send(JSON.stringify({
-        type: "escape_response",
-        success: false,
-        message: "Missing required fields"
-      }));
-      return;
-    }
-
-    // 상태 업데이트
-    updateSessionSafe(token, {
-      state: PlayerState.IDLE,
-    });
-
-    const updatedSession = getSession(token);
-    console.log(updatedSession);
-
-    ws.send(JSON.stringify({
+    session.ws.send(JSON.stringify({
       type: "escape_response",
       success: true,
-      message: `Escape success for character ${characterId} (${status})`
+      message: `Player ${session.username} escaped successfully.`
     }));
-
-    console.log(`✅ [Escape 처리 완료] CharacterID: ${characterId}, Status: ${status}, DungeonID: ${dungeonId}`);
+    
   } catch (err) {
-    console.error("❌ [handleEscapeRequest] 오류:", err);
-    ws.send(JSON.stringify({
-      type: "escape_response",
-      success: false,
-      message: "Internal server error"
-    }));
+    console.error("❌ [handleEscapeRequest] Error:", err);
   }
 }
 
 export {
-  handleLeaveDungeon,
   handleEscapeRequest
 };

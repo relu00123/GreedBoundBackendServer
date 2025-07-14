@@ -1,7 +1,7 @@
 // DungonManager.ts
 
 import { launchDungeonServer } from "../../utils/launchDungeonServer";
-import { DungeonSessionStore } from "../stores/DungeonSessionStore";
+import { DungeonSessionStore,  } from "../stores/DungeonSessionStore";
 import { MapType, PlayerToken, DungeonToken, DungeonSession} from "../../types/types"
 import { WebSocket as WSWebSocket } from "ws";
 
@@ -11,7 +11,7 @@ export class DungeonManager {
     // 맵 타입별로 instance 숫자를 따로 관리한다.
     private instanceCounters : Record<MapType, number> = {};
 
-    // DungeonSession 저장소
+    // DungeonSession cache
     private dungeonSessionStore = DungeonSessionStore.getInstance("DungeonManager");
 
     private constructor() {}
@@ -20,9 +20,9 @@ export class DungeonManager {
 
         // 이쪽은 DungeonManager를 사용하는 애들만 접근할 수 있도록 추가 작업해야함.
         // 어떻게 작성하는지 모르겠으면 DungeonSessionStoer에서 사용한 방식을 참고할 것. 
-        if (caller != "...") {
-            throw new Error("Unauthorized access to DungeonManager");
-        }
+        // if (caller != "...") {
+        //     throw new Error("Unauthorized access to DungeonManager");
+        // }
         return this._instance ??= new DungeonManager();
     }
 
@@ -53,15 +53,12 @@ export class DungeonManager {
 
     // 소캣등록 
     public registerDedicatedSocket(token : DungeonToken, ws : WSWebSocket) : boolean {
-        const session = this.dungeonSessionStore.getDungeonSession(token);
-        if (!session) return false;
-
-        session.ws= ws;
-        return true;
+        return this.dungeonSessionStore.registerSocket(token, ws);
     }
 
 
     public hasDungeon(token: string): boolean {
         return this.dungeonSessionStore.getDungeonSession(token) !== undefined;
+        //return this.dungeonSessionStore.getDungeonSession(token) !== undefined;
     }
 }

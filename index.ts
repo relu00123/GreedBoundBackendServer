@@ -8,34 +8,40 @@ import authRoutes from "./routes/auth";
 import matchRoutes from "./routes/match";
 import playerRoutes from "./routes/player";
 
-import { setupSocket } from "./ws/socketHandler";
+import { setupSocket } from "./ws/SetupSocket";
+import { runAllMigrations } from "./migration/runAllMigrations";
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-
 const PORT = process.env.PORT || 3000;
 
-// 🌐 미들웨어
 app.use(cors());
 app.use(express.json());
 
-// 🔗 라우터 연결
 app.use("/", authRoutes);
 app.use("/match", matchRoutes);
 app.use("/players", playerRoutes);
 
-// 🔌 WebSocket 처리
 setupSocket(wss);
 
-// ✅ 테스트용 엔드포인트
-app.get("/", (req: Request, res: Response) => {
-  res.send("🟢 Node 서버가 잘 실행되고 있어요!");
-});
+// 🟢 서버 시작 함수
+async function startServer() {
+  try {
+    console.log("📦 Running DB migrations...");
+    await runAllMigrations();  // ✅ 여기서 완료 보장
+    console.log("✅ DB migrations complete.");
 
-// ✅ 서버 실행
-server.listen(PORT, () => {
-  console.log(`🚀 Game Backend Server is running on http://localhost:${PORT}`);
-});
+    server.listen(PORT, () => {
+      console.log(`🚀 Game Backend Server is running on http://localhost:${PORT}`);
+    });
+
+  } catch (error) {
+    console.error("❌ 서버 시작 중 오류 발생:", error);
+    process.exit(1);
+  }
+}
+
+startServer(); // 🧠 async 함수 실행

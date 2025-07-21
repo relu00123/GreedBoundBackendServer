@@ -20,6 +20,7 @@ export function setupDedicatedSocketMessageHandler(ws : WebSocket) {
 
         default:
           console.warn("⚠️ Unknown server message type:", msg.type);
+          break;
       }
     } catch (err) {
       console.error("❌ [Dedicated] Invalid message:", err);

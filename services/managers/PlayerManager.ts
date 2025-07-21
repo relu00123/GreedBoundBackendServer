@@ -52,4 +52,10 @@ export class PlayerManager {
     public getPlayerSessionBySocket(ws : WSWebSocket) : Readonly<PlayerSession> | undefined {
         return this.playerSessionStore.getPlayerSessionBySocket(ws);
     }
+
+    public getAllLobbyUserNameAndClass() : { username: string, classType : string}[] {
+        return this.playerSessionStore.getAllLobbyUserNameAndClass();
+    }
+
+    
 }

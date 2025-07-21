@@ -21,7 +21,7 @@ router.post("/start", authenticateToken, (req: Request, res: Response) => {
     const username = session.username;
 
     // 아직 매칭에 대한 로직이 정립이 안되어 있다. 지금은 로그만 찍어놨는데 나중에 정리해야한다.
-     console.log(`🎯 [Matching] ${username} 매칭 큐 등록됨`);
+     console.log(`🎯 [Matching] ${username} 매칭 큐 등록됨!!`);
      return res.status(200).send({ message: "매칭 시작됨" });
   }
 

@@ -23,7 +23,7 @@ export function addToMatchQueue(username: string, token: string) : void
   matchQueue.push({ username, token });
   updateSession(token, { state: PlayerState.MATCHING });
 
-  console.log(`🎯 [Matching] ${username} 매칭 큐 등록됨`);
+  console.log(`🎯 [Matching] ${username} 매칭 큐 등록됨!`);
 
   if (matchQueue.length >= 2) { // 테스트 용도로 2명
     const matched = matchQueue.splice(0, 2);

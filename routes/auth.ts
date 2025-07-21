@@ -45,7 +45,7 @@ router.post("/login", async (req: Request, res: Response) => {
     const token = jwt.sign({username}, process.env.JWT_SECRET as string, { expiresIn : "24h"});
 
     // 플레이어 세션 저장
-    const session : PlayerSession = { username };
+    const session : PlayerSession = { username, classType: "Warrior" };
     PlayerManager.getInstance("...").registerPlayerSession(token, session);
 
     console.log(`✅ [Login] ${username} 접속 완료`);

@@ -8,6 +8,9 @@ export type PlayerToken = string;
 // Map
 export type MapType = "Goblin" | "Ork" | "Ice" | string;
 
+// ClassType
+export type CharacterClassType = "Warrior" | "Archer" | "Mage" | "Cleric" | string;
+
 // DungeonSession
 export type DungeonSession = {
   mapType : MapType;
@@ -20,6 +23,9 @@ export type DungeonSession = {
 export type PlayerSession = {
   username : string;
   ws? : WSWebSocket;
+
+  // 클래스에 관련된 정보
+  classType : CharacterClassType;
 
   // 파티에 관련된 정보 
   party_id? : string;

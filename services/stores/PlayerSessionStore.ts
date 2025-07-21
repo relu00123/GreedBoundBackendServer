@@ -84,4 +84,11 @@ export class PlayerSessionStore {
         this.socketindex.set(ws, token); 
         return true;
     }
+
+    public getAllLobbyUserNameAndClass() : {username : string; classType : string}[] {
+        return Array.from(this.sessions.values()).map(session => ({
+            username :session.username,
+            classType : session.classType
+        }));
+    }
 }

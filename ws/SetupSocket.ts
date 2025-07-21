@@ -35,7 +35,7 @@ export function setupSocket(wss : WebSocketServer) {
                     }
 
                     // Dedicated ws에 MessageHandler등록 
-                    setupClientSocketMessageHandler(ws);
+                    setupDedicatedSocketMessageHandler(ws);
 
                     ws.on("close", () => {
                         // DedicatedSession 관리중인 것 삭제 및 DedicatedServer 로직 종료 필요
@@ -57,7 +57,7 @@ export function setupSocket(wss : WebSocketServer) {
                     }
 
                     // Client ws에 MessageHandler등록
-                    setupDedicatedSocketMessageHandler(ws);
+                    setupClientSocketMessageHandler(ws);
 
                     ws.on("close", () => {
                         // DedicatedSession 관리중인 것 삭제 및 DedicatedServer 로직 종료 필요

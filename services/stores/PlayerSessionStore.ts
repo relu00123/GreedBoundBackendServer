@@ -85,6 +85,10 @@ export class PlayerSessionStore {
         return true;
     }
 
+    public getAllSessions() : Readonly<PlayerSession>[] {
+        return Array.from(this.sessions.values());
+    }
+
     public getAllLobbyUserNameAndClass() : {username : string; classType : string}[] {
         return Array.from(this.sessions.values()).map(session => ({
             username :session.username,

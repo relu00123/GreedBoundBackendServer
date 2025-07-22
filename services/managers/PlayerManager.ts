@@ -53,6 +53,10 @@ export class PlayerManager {
         return this.playerSessionStore.getPlayerSessionBySocket(ws);
     }
 
+    public GetAllPlayerSession() : Readonly<PlayerSession>[] {
+        return this.playerSessionStore.getAllSessions();
+    }
+
     public getAllLobbyUserNameAndClass() : { username: string, classType : string}[] {
         return this.playerSessionStore.getAllLobbyUserNameAndClass();
     }

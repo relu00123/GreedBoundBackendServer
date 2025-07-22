@@ -6,22 +6,11 @@ import jwt from "jsonwebtoken";
 import { PlayerManager } from "../services/managers/PlayerManager";
 import { PlayerSession } from "../types/types"
 import db from "../config/db";
+import { BroadcastSocketMessageUtils } from "../utils/BroadcastSocketMessageUtils";
+import { ClientSocketMessageSender } from "../ws/ClientSocketMessageSender";
+import { GlobalJobQueue } from "../utils/GlobalJobQueue";
+
 const router = express.Router();
-
-// import {
-//   saveSession,
-//   removeSession,
-//   getSession,
-//   isUserLoggedIn,
-// } from "../services/managers/sessionStore";
-
-
-
-// enum PlayerState {
-//   IDLE = "Idle",
-//   MATCHING = "Matching",
-//   GAME = "Game",
-// }
 
 // 로그인
 router.post("/login", async (req: Request, res: Response) => {
@@ -34,65 +23,55 @@ router.post("/login", async (req: Request, res: Response) => {
     const isMatch = await bcrypt.compare(password, rows[0].password_hash);
     if (!isMatch) return res.status(401).json({ success: false, message: "비밀번호 오류" });
 
-    
-    // 리팩토링 중인 코드 (현재 코드)
-    if (PlayerManager.getInstance("...").hasPlayerByUserName(username))
-    {
-      return res.status(409).json({ success: false, message: "이미 접속 중입니다." });
-    }
+    // 공유접근 데이터를 사용하므로 JobQueue로 감싼다.
+    const result = await new Promise<{ code: number, data: any }>((resolve) => {
+    GlobalJobQueue.execute(async () => {
+      const playerManager = PlayerManager.getInstance("auth");
 
-    // 플레이어 토큰 생성
-    const token = jwt.sign({username}, process.env.JWT_SECRET as string, { expiresIn : "24h"});
+      if (playerManager.hasPlayerByUserName(username)) {
+        return resolve({ code: 409, data: { success: false, message: "이미 접속 중입니다." } });
+      }
 
-    // 플레이어 세션 저장
-    const session : PlayerSession = { username, classType: "Warrior" };
-    PlayerManager.getInstance("...").registerPlayerSession(token, session);
+      const token = jwt.sign({ username }, process.env.JWT_SECRET as string, { expiresIn: "24h" });
+      const session: PlayerSession = { username, classType: "Warrior" };
+      playerManager.registerPlayerSession(token, session);
 
-    console.log(`✅ [Login] ${username} 접속 완료`);
+      console.log(`✅ [Login] ${username} 접속 완료`);
 
-    // 클라이언트에게 Response를 보냄 (이부분도 살짝 리팩토링이 필요할 것 같다)
-    res.json({
-      success: true,
-      message: "로그인 성공!",
-      token,
-      nickname : username
-      // userState: {
-      //   nickname: username,
-      //   //state: PlayerState.IDLE,
-      // },
+      resolve({
+        code: 200,
+        data: { success: true, message: "로그인 성공!", token, nickname: username }
+      });
     });
+  });
 
+  res.status(result.code).json(result.data);
 
-    // 리팩토리 중.. (현재코드 끝)
-  
-    // 리팩토링이 필요하다. (예전코드)
-
-    // if (isUserLoggedIn(username))
+    // if (PlayerManager.getInstance("auth").hasPlayerByUserName(username))
+    // {
     //   return res.status(409).json({ success: false, message: "이미 접속 중입니다." });
+    // }
 
-    // //const token = jwt.sign({ username }, process.env.JWT_SECRET as string, { expiresIn: "24h" });
+    // // 플레이어 토큰 생성
+    // const token = jwt.sign({username}, process.env.JWT_SECRET as string, { expiresIn : "24h"});
 
-    // saveSession(token, {
-    //   username,
-    //   nickname: username,
-    //   state: PlayerState.IDLE,
-    //   partyId: null,
-    //   token,
-    // });
+    // // 플레이어 세션 저장
+    // const session : PlayerSession = { username, classType: "Warrior" };
+    // PlayerManager.getInstance("auth").registerPlayerSession(token, session);
 
     // console.log(`✅ [Login] ${username} 접속 완료`);
 
+    // // 클라이언트에게 Response를 보냄 (이부분도 살짝 리팩토링이 필요할 것 같다)
     // res.json({
     //   success: true,
     //   message: "로그인 성공!",
     //   token,
-    //   userState: {
-    //     nickname: username,
-    //     state: PlayerState.IDLE,
-    //   },
+    //   nickname : username
+    //   // userState: {
+    //   //   nickname: username,
+    //   //   //state: PlayerState.IDLE,
+    //   // },
     // });
-
-    // 리팩토링이 필요 (예전코드 끝)
 
   } catch (err) {
     console.error("❌ 로그인 오류:", err);
@@ -102,7 +81,7 @@ router.post("/login", async (req: Request, res: Response) => {
 
 // 로그아웃
 // GBGameInstance::Shutdown()에서 지금은 Request하고 있다. 
-router.post("/logout", (req: Request, res: Response) => {
+router.post("/logout", async (req: Request, res: Response) => {
   const { token } = req.body;
   if (!token) return res.status(400).json({ success: false, message: "Token이 필요합니다." });
 
@@ -112,27 +91,34 @@ router.post("/logout", (req: Request, res: Response) => {
     return res.status(403).json({ success: false, message: "유효하지 않은 토큰입니다." });
   }
 
-  // 리팩토링 중인 코드 (현재 코드)
-  const session = PlayerManager.getInstance("...").getPlayerSessionByToken(token);
-  if (!session) return res.status(404).json({ success: false, message: "세션 없음" });
+  // 공유 자원에 접근해야하기 때문에 JobQueue로 보호
+  const result = await new Promise<{ code: number; data: any }>((resolve) => {
+    GlobalJobQueue.execute(async () => {
+      const playerManager = PlayerManager.getInstance("logout");
+      const session = playerManager.getPlayerSessionByToken(token);
 
-  PlayerManager.getInstance("...").removePlayerSession(token);
-  console.log(`🚪 [Logout] ${session.username} 로그아웃 완료`);
-  res.status(200).json({ success: true, message: "로그아웃 성공" });
+      if (!session) {
+        return resolve({ code: 404, data: { success: false, message: "세션 없음" } });
+      }
 
-  // 리팩토링 중인 코드 (현재 코드 끝)
+      playerManager.removePlayerSession(token);
+      console.log(`🚪 [Logout] ${session.username} 로그아웃 완료`);
 
-  // 리팩토링이 필요하다. (예전 코드)
-  // const session = getSession(token);
+      resolve({ code: 200, data: { success: true, message: "로그아웃 성공" } });
+    });
+  });
+
+  res.status(result.code).json(result.data);
+
+  // const session = PlayerManager.getInstance("...").getPlayerSessionByToken(token);
   // if (!session) return res.status(404).json({ success: false, message: "세션 없음" });
 
-  // removeSession(token);
+  // PlayerManager.getInstance("...").removePlayerSession(token);
   // console.log(`🚪 [Logout] ${session.username} 로그아웃 완료`);
   // res.status(200).json({ success: true, message: "로그아웃 성공" });
-  // 리팩토링이 필요하다. (예전 코드 끝)
 });
 
-// 회원가입
+// 회원가입 (JobQueue 필요 x )
 router.post("/register", async (req: Request, res: Response) => {
   const { username, password } = req.body;
 

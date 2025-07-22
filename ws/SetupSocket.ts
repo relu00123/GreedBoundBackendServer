@@ -7,6 +7,10 @@ import { SocketMessage} from "../types/types"
 import { PlayerManager } from "../services/managers/PlayerManager";
 import { setupDedicatedSocketMessageHandler } from "./DedicatedSocketMessageHandler";
 import { setupClientSocketMessageHandler } from "./ClientSocketMessageHandler";
+import { BroadcastSocketMessageUtils } from "../utils/BroadcastSocketMessageUtils";
+import { ClientSocketMessageSender } from "../ws/ClientSocketMessageSender";
+import {PlayerToken, PlayerSession} from "../types/types";
+import { GlobalJobQueue } from "../utils/GlobalJobQueue";
 
 export function setupSocket(wss : WebSocketServer) {
     wss.on("connection", (ws: WebSocket, req) => {
@@ -24,45 +28,66 @@ export function setupSocket(wss : WebSocketServer) {
         try {
             switch (connecttype.toLowerCase()) {
                 case "dedicated": {
+                    GlobalJobQueue.execute(async () => {
 
-                    // ws저장
-                    const success = DungeonManager.getInstance("SetupSocket").registerDedicatedSocket(token, ws);
+                        // ws저장
+                        const success = DungeonManager.getInstance("SetupSocket").registerDedicatedSocket(token, ws);
 
-                    if (!success) {
-                        ws.send(JSON.stringify({ error : "Invalid or expired session"}));
-                        ws.close();
-                        return;
-                    }
+                        if (!success) {
+                            ws.send(JSON.stringify({ error : "Invalid or expired session"}));
+                            ws.close();
+                            return;
+                        }
 
-                    // Dedicated ws에 MessageHandler등록 
-                    setupDedicatedSocketMessageHandler(ws);
+                        // Dedicated ws에 MessageHandler등록 
+                        setupDedicatedSocketMessageHandler(ws);
 
-                    ws.on("close", () => {
-                        // DedicatedSession 관리중인 것 삭제 및 DedicatedServer 로직 종료 필요
-                        // 로그도 조금더 자세하게 작성해줘야 함. 어떤 DedicatedServer가 종료된 것인지. 
-                        console.log(`[SetupSocket] DedicatedServer Disconnected`);
+                        ws.on("close", () => {
+                            GlobalJobQueue.execute(async () => {
+                                // DedicatedSession 관리중인 것 삭제 및 DedicatedServer 로직 종료 필요
+                                // 로그도 조금더 자세하게 작성해줘야 함. 어떤 DedicatedServer가 종료된 것인지. 
+                                console.log(`[SetupSocket] DedicatedServer Disconnected`);
+                            });
+                        });
                     });
-
                     break;
                 }
 
                 case "client": {
+                    GlobalJobQueue.execute(async () => {
 
-                    const success = PlayerManager.getInstance("SetupSocket").registerPlayerSocket(token, ws);
+                        const success = PlayerManager.getInstance("SetupSocket").registerPlayerSocket(token, ws);
+                        const session = PlayerManager.getInstance("SetupSocket").getPlayerSessionByToken(token);
 
-                    if (!success) {
-                        ws.send(JSON.stringify({ error : "Invalid or expired session"}));
-                        ws.close();
-                        return;
-                    }
+                        if (!success || !session) {
+                            ws.send(JSON.stringify({ error : "Invalid or expired session"}));
+                            ws.close();
+                            return;
+                        }
 
-                    // Client ws에 MessageHandler등록
-                    setupClientSocketMessageHandler(ws);
+                        // Client ws에 MessageHandler등록
+                        setupClientSocketMessageHandler(ws);
 
-                    ws.on("close", () => {
-                        // DedicatedSession 관리중인 것 삭제 및 DedicatedServer 로직 종료 필요
-                        // 로그도 조금더 자세하게 작성해줘야 함. 어떤 DedicatedServer가 종료된 것인지. 
-                        console.log(`[SetupSocket] Client Disconnected`);
+                        // 본인을 제외한 모든 접속중인 Client들에게 입장 사실을 알림 
+                        BroadcastSocketMessageUtils.broadcastToAllLobbyMemberExceptSender(ws, {
+                            type : "playerJoined",
+                            payload : { userName : session.username, classType : session.classType }
+                        });
+                        
+
+                        ws.on("close", () => {
+                            GlobalJobQueue.execute(async () => {
+                                // DedicatedSession 관리중인 것 삭제 및 DedicatedServer 로직 종료 필요
+                                // 로그도 조금더 자세하게 작성해줘야 함. 어떤 DedicatedServer가 종료된 것인지. 
+                                console.log(`[SetupSocket] Client Disconnected`);
+
+                                // 본인을 제외한 모든 접속중인 Client에게 퇴장 사실을 알림
+                                BroadcastSocketMessageUtils.broadcastToAllLobbyMemberExceptSender(ws, {
+                                    type : "playerLeft",
+                                    payload : { userName : session.username}
+                                });
+                            });
+                        });
                     });
 
                     break;

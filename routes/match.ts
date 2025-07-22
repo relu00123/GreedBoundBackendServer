@@ -7,7 +7,7 @@ import { PlayerManager } from "../services/managers/PlayerManager";
 
 const router = express.Router();
 
-// 클라이언트가 매칭 시작을 요청할 때
+// 클라이언트가 매칭 시작을 요청할 때 (이 post사용하면 안됨. 매칭에 대한 부분 전면 리팩토링중)
 router.post("/start", authenticateToken, (req: Request, res: Response) => {
 
   const token = req.headers.authorization?.split(" ")[1];

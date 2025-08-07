@@ -8,6 +8,10 @@ export interface PendingRequestRow {
   user_id: string;
 }
 
+export interface SentRequestRow {
+  friend_id : string; 
+}
+
 export interface FriendshipRow {
   user_id: string;
   friend_id: string;
@@ -28,7 +32,16 @@ export class FriendshipStore {
     await pool.execute(sql, [userId, targetId]);
   }
 
-  // 친구 수락
+  // 친구 요청 삭제
+  static async removeFriendRequest(userId: string, targetId: string) : Promise<void> {
+    const sql = `
+      DELETE FROM friendships
+      WHERE use_id = ? AND friend_id = ? AND status = 'pending'
+    `;
+    await pool.execute(sql, [userId, targetId]);
+  } 
+
+  // 친구 요청 수락
   static async acceptFriendRequest(userId: string, targetId: string): Promise<void> {
     const sql = `
       UPDATE friendships
@@ -75,5 +88,15 @@ export class FriendshipStore {
     `;
     const [rows] = await pool.execute(sql, [userId]);
     return rows as PendingRequestRow[];
+  }
+
+  // 내가 보낸 친구 요청 목록
+  static async getSentRequest(userId: string) : Promise<SentRequestRow[]> {
+    const sql = `
+      SELECT friend_id FROM friendships
+      WHERE user_id = ? AND status = 'pending'
+    `;
+    const [rows] = await pool.execute(sql, [userId]);
+    return rows as SentRequestRow[];
   }
 }

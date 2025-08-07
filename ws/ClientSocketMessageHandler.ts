@@ -6,6 +6,9 @@ import { DungeonManager } from "../services/managers/DungeonManager";
 import { SocketMessage } from "../types/types";
 import { PlayerManager } from "../services/managers/PlayerManager";
 import { GlobalJobQueue } from "../utils/GlobalJobQueue";
+import { FriendshipManager } from "../services/managers/FriendshipManager";
+import { ClientSocketMessageSender } from "./ClientSocketMessageSender";
+import { SentRequestRow } from "../services/stores/FriendshipStore";
 
 
 export function setupClientSocketMessageHandler(ws: WebSocket) {
@@ -40,7 +43,68 @@ export function setupClientSocketMessageHandler(ws: WebSocket) {
             break;
 
           case "FriendListRequest":
-            console.log("FriendListRequest Received");
+          
+            break;
+
+          case "FriendRequestSentListRequest":
+
+            console.log("FriendRequestSentListRequest Received");
+
+            const sentpayload = msg.Payload;
+            const userId = sentpayload.MyNickName;
+
+            if (!userId) {
+              console.error("MyNickName not provieded in FriendRequestSentListRequest [ClientSocketMessageHandler.ts]");
+              break;
+            }
+
+            const sentList = await FriendshipManager.getSentRequest(userId);
+            ClientSocketMessageSender.sendFriendRequestSentListResponse(ws, sentList);
+            break;
+
+          case "FriendRequestReceivedListRequest":
+
+            console.log("FrineRequestReceivedListRequest Received");
+
+            const FriensRequestReceivedListPayload = msg.Payload; 
+
+            if (!FriensRequestReceivedListPayload.MyNickName) {
+              console.error("MyNickName not provieded in FriendRequestReceivedListRequest [ClientSocketMessageHandler.ts]");
+            }
+
+            const receivedList = await FriendshipManager.getIncomingRequests(FriensRequestReceivedListPayload.MyNickName);
+            ClientSocketMessageSender.sendFriendRequestReceivedListResponse(ws, receivedList);
+            break;
+
+          case "AddFriendRequest":
+            console.log("AddFriendRequest Received!");
+            const AddFriendRequestPayload = msg.Payload;
+            const MyNickName = AddFriendRequestPayload.MyNickname;  
+            const targetNickname = AddFriendRequestPayload.TargetNickname;
+            console.log(`Add friend request for : ${MyNickName} -> ${targetNickname}`);
+            try {
+              await FriendshipManager.HandleAddFriendRequest(MyNickName, targetNickname);
+              ClientSocketMessageSender.sendAddFriendRequestSentResponse(ws, true, {friend_id : targetNickname});
+            } catch(err : any) {
+              ClientSocketMessageSender.sendAddFriendRequestSentResponse(ws, false);
+            }
+
+            break;
+
+          case "WithdrawFriendRequest":
+            {
+            
+              console.log("WithdrawFriendRequest Received!");
+              const Payload= msg.Payload;
+
+            }
+            
+
+            break;
+          
+          case "RespondToFriendRequest":
+            console.log("RespondToFriendRequest Received!");
+
             break;
             
           default:

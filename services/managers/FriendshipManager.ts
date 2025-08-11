@@ -5,7 +5,6 @@ import { PlayerManager } from "./PlayerManager";
 export class FriendshipManager {
  
   static async HandleAddFriendRequest(userId : string, targetId: string) : Promise<void> {
-
     // DB에 요청 저장
     await this.sendFriendRequest(userId, targetId);
 
@@ -14,14 +13,39 @@ export class FriendshipManager {
     if (receiverSession)
     {
       console.log(`현재 ${targetId}가 로그인 중입니다! ${targetId}에게 친구추가 받음 packet을 보냅니다`);
-      const targetSession = PlayerManager.getInstance("FriendshipManager").getPlayerSessionByUserName(targetId);
-      if (targetSession?.ws)
+      if (receiverSession?.ws)
       {
-      ClientSocketMessageSender.sendFriendRequestReceived(targetSession.ws, { user_id : userId});
+      ClientSocketMessageSender.sendFriendRequestReceived(receiverSession.ws, { user_id : userId});
       }
-      
     }
   }
+
+  static async HandleRemoveFriendRequest(userId : string, targetId: string) : Promise<void> {
+    // DB에서 친구 관계 삭제 
+    await this.removeFriend(userId, targetId);
+
+    // 상대방이 온라인이면 알림전송 
+    const receiverSession = PlayerManager.getInstance("FriendshipManager").getPlayerSessionByUserName(targetId);
+    if (receiverSession)
+    {
+        if (receiverSession?.ws)
+        {
+          ClientSocketMessageSender.sendRemoveFriend(receiverSession.ws, userId);
+        }
+    }
+
+    // 나에게도 올바르게 친구삭제가 되었다고 알림전송
+    const senderSession = PlayerManager.getInstance("FriendshipManager").getPlayerSessionByUserName(userId);
+    if (senderSession)
+    {
+      if (senderSession?.ws)
+      {
+        ClientSocketMessageSender.sendRemoveFriend(senderSession.ws, targetId);
+      }
+    }
+
+  }
+
 
   static async sendFriendRequest(userId: string, targetId: string): Promise<void> {
     if (userId === targetId) {
@@ -63,6 +87,57 @@ export class FriendshipManager {
     await FriendshipStore.acceptFriendRequest(targetId, userId);       // A → B
     await FriendshipStore.addFriendRequest(userId, targetId);         // B → A
     await FriendshipStore.acceptFriendRequest(userId, targetId);      // 상태 변경
+  }
+
+  static async rejectFriendRequest(senderId: string, receiverId: string): Promise<void> {
+    await FriendshipStore.rejectFriendRequest(senderId, receiverId);
+  }
+
+  // 친구 추가 요청 응답 (받음/거절)
+  static async RespondToFriendRequest(senderId : string, receiverId : string, isAccepted : boolean)
+  {
+     // 친구요청을 승낙했을 경우
+    if (isAccepted)
+    {
+        console.log("Trying To Accept Friend Request");
+
+      // 1. DB변경 : 양방향 친구 등록 
+      await this.acceptFriendRequest(senderId, receiverId); // sender가 수락 -> 양방향 친구 등록 
+
+      // 2. sender와 receiver에게 친구추가됨 사실을 알린다. 
+      const senderSession = PlayerManager.getInstance("FriendshipManager").getPlayerSessionByUserName(senderId);
+      if (senderSession && senderSession.ws)
+      {
+        ClientSocketMessageSender.AcceptFriendRequest(senderSession.ws, senderId, receiverId);
+      }
+
+      const receiverSession = PlayerManager.getInstance("FriendshipManager").getPlayerSessionByUserName(receiverId);
+      if (receiverSession && receiverSession.ws) 
+      {
+        ClientSocketMessageSender.AcceptFriendRequest(receiverSession.ws, senderId, receiverId);
+      }
+    }
+    else
+    {
+       console.log("Trying To Reject Friend Request");
+
+      // 1. DB변경 (sender : 친구요청을 거절한 쪽, receiver : 친구요청을 한쪽 )
+      await this.rejectFriendRequest(receiverId, senderId); // sender가 거절 
+
+      // 2. sender와 receiver에게 거절됨을 알린다. 
+      const senderSession = PlayerManager.getInstance("FriendshipManager").getPlayerSessionByUserName(senderId);
+      if (senderSession && senderSession.ws)
+      {
+        ClientSocketMessageSender.RejectFriendRequest(senderSession.ws, senderId, receiverId);
+      }
+
+      const receiverSession = PlayerManager.getInstance("FriendshipManager").getPlayerSessionByUserName(receiverId);
+      if (receiverSession && receiverSession.ws) 
+      {
+        ClientSocketMessageSender.RejectFriendRequest(receiverSession.ws, senderId, receiverId);
+      }
+
+    }
   }
 
   // 양방향 친구 삭제

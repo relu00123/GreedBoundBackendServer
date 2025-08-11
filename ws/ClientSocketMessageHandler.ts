@@ -43,8 +43,31 @@ export function setupClientSocketMessageHandler(ws: WebSocket) {
             break;
 
           case "FriendListRequest":
-          
-            break;
+            {
+              console.log("FriendListRequest Received");
+
+              const Payload = msg.Payload;
+              const userId = Payload.MyNickName;
+
+              // 전체 msg를 JSON 문자열로 출력
+              // console.log("msg =", JSON.stringify(msg, null, 2));
+
+              // // payload만 출력
+              // console.log("Payload =", JSON.stringify(Payload, null, 2));
+
+              // // MyNickName 값만 출력
+              // console.log("MyNickName =", userId, "| type =", typeof userId);
+
+              if (!userId) 
+              {
+                console.error("MyNickName not provieded in FriendListRequest [ClientSocketMessageHandler.ts]");
+                break;
+              }
+
+              const friendList = await FriendshipManager.getFriendList(userId);
+              ClientSocketMessageSender.sendFriendListResponse(ws, friendList);
+              break;
+            }
 
           case "FriendRequestSentListRequest":
 
@@ -77,20 +100,38 @@ export function setupClientSocketMessageHandler(ws: WebSocket) {
             break;
 
           case "AddFriendRequest":
-            console.log("AddFriendRequest Received!");
-            const AddFriendRequestPayload = msg.Payload;
-            const MyNickName = AddFriendRequestPayload.MyNickname;  
-            const targetNickname = AddFriendRequestPayload.TargetNickname;
-            console.log(`Add friend request for : ${MyNickName} -> ${targetNickname}`);
-            try {
-              await FriendshipManager.HandleAddFriendRequest(MyNickName, targetNickname);
-              ClientSocketMessageSender.sendAddFriendRequestSentResponse(ws, true, {friend_id : targetNickname});
-            } catch(err : any) {
-              ClientSocketMessageSender.sendAddFriendRequestSentResponse(ws, false);
-            }
+            {
+              console.log("AddFriendRequest Received!");
+              const AddFriendRequestPayload = msg.Payload;
+              const MyNickName = AddFriendRequestPayload.MyNickname;  
+              const targetNickname = AddFriendRequestPayload.TargetNickname;
+              console.log(`Add friend request for : ${MyNickName} -> ${targetNickname}`);
+              try {
+                await FriendshipManager.HandleAddFriendRequest(MyNickName, targetNickname);
 
+                // 자기자신에게 보냄 
+                ClientSocketMessageSender.sendAddFriendRequestSentResponse(ws, true, {friend_id : targetNickname});
+              } catch(err : any) {
+                ClientSocketMessageSender.sendAddFriendRequestSentResponse(ws, false);
+              }
+            }
             break;
 
+          case "RemoveFriendRequest" :
+            {
+              console.log("RemoveFriendRequest Received!");
+              const Payload = msg.Payload;
+              const MyNickname = Payload.MyNickname;
+              const TargetNickname = Payload.TargetNickname;
+              console.log(`Remove friend from : ${MyNickname} -> ${TargetNickname}`);
+              try {
+                await FriendshipManager.HandleRemoveFriendRequest(MyNickname, TargetNickname);
+
+              } catch(err : any) {
+
+              }
+            }
+            break;
           case "WithdrawFriendRequest":
             {
             
@@ -103,8 +144,21 @@ export function setupClientSocketMessageHandler(ws: WebSocket) {
             break;
           
           case "RespondToFriendRequest":
-            console.log("RespondToFriendRequest Received!");
+            {
+              console.log("RespondToFriendRequest Received!");
 
+              const payload = msg.Payload;
+
+              const MyNickName = payload.MyNickname; 
+              const targetNickname = payload.TargetNickname;
+              const isAccepted = payload.IsAccepted;
+
+              try {
+                await FriendshipManager.RespondToFriendRequest(MyNickName, targetNickname, isAccepted);
+              } catch(err : any) {
+                
+              }
+            }
             break;
             
           default:

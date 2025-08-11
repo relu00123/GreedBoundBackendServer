@@ -1,6 +1,6 @@
 import { WebSocket } from "ws";
 import { GlobalJobQueue } from "../utils/GlobalJobQueue";
-import { PendingRequestRow, SentRequestRow } from "../services/stores/FriendshipStore";
+import { FriendRow, PendingRequestRow, SentRequestRow } from "../services/stores/FriendshipStore";
 
 // 아직까지는 JobQueue에 연동해야할 부분이 없지만, 필요하다면 만들어지는 함수를 JobQueue에 연동을 해야한다. 
 export class ClientSocketMessageSender {
@@ -15,6 +15,13 @@ export class ClientSocketMessageSender {
         ws.send(JSON.stringify({
             type: "playerLeft",
             payload : {userName}
+        }));
+    }
+
+    static sendFriendListResponse(ws : WebSocket, friendList : FriendRow[]) {
+        ws.send(JSON.stringify({
+            type: "FriendListResponse",
+            payload: friendList
         }));
     }
 
@@ -33,6 +40,47 @@ export class ClientSocketMessageSender {
             type : "AddFriendRequestSentResponse",
             payload : {sentPacket, isSucceed}
         }));
+    }
+
+    static AcceptFriendRequest(ws : WebSocket, SenderID : string, ReceiverID : string) {
+        const payload = {
+            AcceptedBy : SenderID,
+            AcceptedTo : ReceiverID,
+            status  : 'accepted'
+        };
+
+        if (ws) 
+        {
+            ws.send(JSON.stringify({
+                type : "FriendRequestAccepted",
+                payload
+            }));
+        }
+    }
+
+    static RejectFriendRequest(ws : WebSocket, SenderID : string, ReceiverID : string) {
+        if (ws) 
+        {
+            ws.send(JSON.stringify({
+                type : "FriendRequestRejected",
+                payload : {
+                    rejectedBy : SenderID,
+                    rejectedTo : ReceiverID
+                }
+            }));
+        }
+    }
+
+    static sendRemoveFriend(ws : WebSocket, TargetID : string) {
+        if (ws)
+        {
+            ws.send(JSON.stringify({
+                type : "FriendRemoved",
+                payload : {
+                    targetID : TargetID
+                }
+            }))
+        }
     }
 
     // 런타임에 친구추가를 받은 사람은 Server로 부터 누가 친구요청을 받았는지 알아야 한다.

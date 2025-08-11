@@ -51,6 +51,15 @@ export class FriendshipStore {
     await pool.execute(sql, [userId, targetId]);
   }
 
+  // 친구 요청 거절
+  static async rejectFriendRequest(userId: string, targetId: string): Promise<void> {
+    const sql = `
+      DELETE FROM friendships
+      WHERE user_id = ? AND friend_id = ? AND status = 'pending'
+    `;
+    await pool.execute(sql, [userId, targetId]);
+  }
+
   // 친구 삭제 (단방향)
   static async deleteFriend(userId: string, targetId: string): Promise<void> {
     const sql = `

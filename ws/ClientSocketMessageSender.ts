@@ -1,9 +1,28 @@
 import { WebSocket } from "ws";
 import { GlobalJobQueue } from "../utils/GlobalJobQueue";
 import { FriendRow, PendingRequestRow, SentRequestRow } from "../services/stores/FriendshipStore";
+import { CharacterClassTypeEnum, CharacterClassValueMap, PlayerSession } from "../types/types";
+import { BroadcastSocketMessageUtils } from "../utils/BroadcastSocketMessageUtils";
 
 // 아직까지는 JobQueue에 연동해야할 부분이 없지만, 필요하다면 만들어지는 함수를 JobQueue에 연동을 해야한다. 
 export class ClientSocketMessageSender {
+
+    private static buildUserInfoPayload(s : Readonly<PlayerSession>) {
+        return {
+            username : s.username,
+            classType : s.classType,
+            classTypeEnum : CharacterClassValueMap[s.classType],
+        } as const;
+    }
+
+    static broadcastuserInfoUpdatedToAll(snapshot : Readonly<PlayerSession>) {
+        const payload = this.buildUserInfoPayload(snapshot);
+        BroadcastSocketMessageUtils.broadcastToAllLobbyMember({
+            type : "UserInfoUpdated",
+            payload,
+        });
+    }
+
     static sendPlayerJoined(ws : WebSocket, userName : string, classType  : string) {
         ws.send(JSON.stringify({
             type: "playerJoined",

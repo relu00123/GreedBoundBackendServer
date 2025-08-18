@@ -1,4 +1,4 @@
-import {PlayerToken, PlayerSession} from "../../types/types";
+import {PlayerToken, PlayerSession, CharacterClassType} from "../../types/types";
 import { PlayerSessionStore} from "../stores/PlayerSessionStore";
 import { WebSocket as WSWebSocket } from "ws";
 
@@ -61,5 +61,16 @@ export class PlayerManager {
         return this.playerSessionStore.getAllLobbyUserNameAndClass();
     }
 
-    
+    public setClassTypeBySocket(ws: WSWebSocket, classType: CharacterClassType): Readonly<PlayerSession> | undefined {
+        // 1) 현재 스냅샷 조회
+        const cur = this.playerSessionStore.getPlayerSessionBySocket?.(ws);
+        if (!cur) return undefined;
+
+        // 2) 동일 값이면 바로 현재 스냅샷 반환 (No-op)
+        if (cur.classType === classType) return cur;
+
+        // 3) Store에 위임해서 변경(뮤테이터 필요)
+        const updated = this.playerSessionStore.setClassTypeBySocket?.(ws, classType);
+        return updated ?? undefined;
+    }
 }

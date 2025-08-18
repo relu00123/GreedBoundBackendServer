@@ -3,7 +3,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { getSession, updateSession, sessionMap, Session } from "../services/managers/sessionStore";
 import { handleEscapeRequest,  EscapeRequestMessage } from "../services/managers/EscapeManager";
 import { DungeonManager } from "../services/managers/DungeonManager";
-import { SocketMessage } from "../types/types";
+import { CharacterClassValueMap, SocketMessage, CharacterClassType, CharacterClassTypeEnum, CharacterClassNameMap} from "../types/types";
 import { PlayerManager } from "../services/managers/PlayerManager";
 import { GlobalJobQueue } from "../utils/GlobalJobQueue";
 import { FriendshipManager } from "../services/managers/FriendshipManager";
@@ -23,6 +23,111 @@ export function setupClientSocketMessageHandler(ws: WebSocket) {
           case "friend":
             // handleFriendMessage(ws, msg);
             break;
+
+          case "ChangeClassRequest" : 
+          {
+            try {
+              console.log("Change Class Request Received!");
+
+              // 페이로드 파싱
+              const payload = msg.Payload;
+              const requestedEnum = payload.RequestedClass as CharacterClassTypeEnum;
+
+              // 유효성 체크 (enum 값 범위 확인)
+              if (typeof requestedEnum  !== "number" || !(requestedEnum in CharacterClassNameMap)) {
+                ws.send(JSON.stringify({
+                  type: "ChangeClassResponse",
+                  payload : {
+                    success : false,
+                    oldClass : null,
+                    newClass : null,
+                    error : "INVALID_PAYLOAD",
+                  }
+                }));
+                break;
+            }
+            
+
+            // 세션 조회 
+            const player = PlayerManager.getInstance("ClientSocketMessageHandler").getPlayerSessionBySocket(ws);
+
+            if (!player) {
+              ws.send(JSON.stringify({
+                type : "ChangeClassResponse",
+                payload: {
+                  success : false,
+                  oldClass : null,
+                  newClass : null,
+                  error : "NOT_AUTHENTICATED",
+                }
+              }));
+              break;
+            }
+
+            const oldClassStr: CharacterClassType = player.classType; // 예: "Knight"
+            const requestedStr = CharacterClassNameMap[requestedEnum]; // e.g. 1 -> "Knight"
+
+            // 같은 클래스일시 no-op
+            if (oldClassStr === requestedStr)
+            {
+              ws.send(JSON.stringify({
+                type : "ChangeClassResponse",
+                payload : {
+                  success : true,
+                  oldClass: CharacterClassValueMap[oldClassStr],
+                  newClass: CharacterClassValueMap[oldClassStr],
+                  note : "NO_CHANGE"
+                }
+              }));
+              break;
+            }
+
+            const prevStr = oldClassStr;
+            const snapshot = PlayerManager.getInstance("ClientSocketMessageHandler").setClassTypeBySocket(ws, payload.RequestedClass);
+
+            if (!snapshot) {
+              ws.send(JSON.stringify({
+                type: "ChangeClassResponse",
+                payload : 
+                {
+                  success : false,
+                  oldClass: CharacterClassValueMap[oldClassStr],
+                  newClass: requestedEnum,
+                  error : "CHANGE_FAILED"
+                }
+              
+              }));
+              break;
+            }
+
+            // 요청자에게 성공 응답
+            ws.send(JSON.stringify({
+              type: "ChangeClassResponse",
+              payload: {
+                success:true,
+                oldClass: CharacterClassValueMap[prevStr],
+                newClass: requestedEnum,
+              }
+            }));
+
+            // 접속한 유저들에게 UserInfo바뀜을 Broadcast
+            ClientSocketMessageSender.broadcastuserInfoUpdatedToAll(snapshot);
+
+
+          } catch (err) {
+            console.error("ChangeClassRequest error:", err);
+            ws.send(JSON.stringify({
+            type: "ChangeClassResponse",
+            payload: {
+              success: false,
+              oldClass: null,
+              newClass: null,
+              error: "INTERNAL_ERROR",
+            }
+            }));
+          }
+            break;
+          }
 
           case "LobbyUserListRequest":
              

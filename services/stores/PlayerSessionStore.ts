@@ -1,5 +1,5 @@
 
-import { PlayerToken, PlayerSession} from "../../types/types"
+import { PlayerToken, PlayerSession, CharacterClassType} from "../../types/types"
 import { WebSocket as WSWebSocket } from "ws";
 
 export class PlayerSessionStore {
@@ -68,6 +68,23 @@ export class PlayerSessionStore {
         const token = this.usernameindex.get(username);
         if(!token) return undefined;
         return this.sessions.get(token);
+    }
+
+    public setClassTypeByToken(token: PlayerToken, classType: CharacterClassType): Readonly<PlayerSession> | undefined {
+        const s = this.sessions.get(token);
+        if (!s) return undefined;
+
+        if (s.classType === classType) return Object.freeze({ ...s }); // No-op
+
+        const updated: PlayerSession = { ...s, classType };
+        this.sessions.set(token, updated);
+        return Object.freeze({ ...updated });
+    }
+
+    public setClassTypeBySocket(ws: WSWebSocket, classType: CharacterClassType): Readonly<PlayerSession> | undefined {
+        const token = this.socketindex.get(ws);
+        if (!token) return undefined;
+        return this.setClassTypeByToken(token, classType);
     }
 
     public getPlayerSessionBySocket(ws : WSWebSocket) : Readonly<PlayerSession> | undefined {

@@ -1,7 +1,7 @@
 import { WebSocket } from "ws";
 import { GlobalJobQueue } from "../utils/GlobalJobQueue";
 import { FriendRow, PendingRequestRow, SentRequestRow } from "../services/stores/FriendshipStore";
-import { CharacterClassTypeEnum, CharacterClassValueMap, PlayerSession } from "../types/types";
+import { CharacterClassTypeEnum, CharacterClassValueMap, PlayerSession, PlayerSessionPatch, PlayerSessionUpdated } from "../types/types";
 import { BroadcastSocketMessageUtils } from "../utils/BroadcastSocketMessageUtils";
 
 // 아직까지는 JobQueue에 연동해야할 부분이 없지만, 필요하다면 만들어지는 함수를 JobQueue에 연동을 해야한다. 
@@ -22,6 +22,24 @@ export class ClientSocketMessageSender {
             payload,
         });
     }
+
+     static broadcastPlayerSessionUpdatedToAll(snapshot: Readonly<PlayerSession>, changed: PlayerSessionPatch): void  {
+        // 빈 패치는 전송할 필요 없음
+        if (!changed || Object.keys(changed).length === 0) return;
+
+        const userId = snapshot.username;
+
+        const msg: PlayerSessionUpdated = {
+        type: "PlayerSessionUpdated",
+        userId,
+        changed,
+        };
+
+        // 전 로비(or 전체 접속자)에게 브로드캐스트
+        // 로비 스코프로 제한하고 싶으면 broadcastToLobbyMember(snapshot.lobbyId, msg) 같은 걸로 교체
+        BroadcastSocketMessageUtils.broadcastToAllLobbyMember(msg);
+    }
+
 
     static sendPlayerJoined(ws : WebSocket, userName : string, classType  : string) {
         ws.send(JSON.stringify({

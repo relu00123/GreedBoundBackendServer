@@ -38,6 +38,22 @@ export const CharacterClassValueMap: Record<CharacterClassType, CharacterClassTy
   MAX:    CharacterClassTypeEnum.Max
 };
 
+
+// 변경될 수 있는 유저 필드 모음
+export type PlayerSessionPatch = Partial<{
+  username: string;
+  classType: CharacterClassTypeEnum;  // Enum 기반 
+  partyId: string | null;             // 외부 DTO는 camelCase 권장
+  online: boolean;
+}>;
+
+export type PlayerSessionUpdated = {
+  type: "PlayerSessionUpdated";       // 오타 수정
+  userId: string;                     // = username
+  //rev: number;                        // 권장(없어도 되지만 강추)
+  changed: PlayerSessionPatch;        // 변경된 필드만
+};
+
 // 헬퍼 함수 예시
 export function classEnumToString(value: CharacterClassTypeEnum): CharacterClassType {
   return CharacterClassNameMap[value];

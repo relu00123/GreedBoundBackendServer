@@ -3,7 +3,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { getSession, updateSession, sessionMap, Session } from "../services/managers/sessionStore";
 import { handleEscapeRequest,  EscapeRequestMessage } from "../services/managers/EscapeManager";
 import { DungeonManager } from "../services/managers/DungeonManager";
-import { CharacterClassValueMap, SocketMessage, CharacterClassType, CharacterClassTypeEnum, CharacterClassNameMap} from "../types/types";
+import { CharacterClassValueMap, SocketMessage, CharacterClassType, CharacterClassTypeEnum, CharacterClassNameMap, PlayerSessionPatch} from "../types/types";
 import { PlayerManager } from "../services/managers/PlayerManager";
 import { GlobalJobQueue } from "../utils/GlobalJobQueue";
 import { FriendshipManager } from "../services/managers/FriendshipManager";
@@ -110,8 +110,21 @@ export function setupClientSocketMessageHandler(ws: WebSocket) {
               }
             }));
 
+
+            // 접속한 모든 유저들에게 Broadcast
+            /*
+            const update: PlayerSessionUpdated = {
+              type: "PlayerSessionUpdated",        
+              userId :  player.username,                             
+              changed: { classType: requestedStr }  
+            };
+            */
+
+            const patch: PlayerSessionPatch = { classType: requestedEnum };
+
             // 접속한 유저들에게 UserInfo바뀜을 Broadcast
-            ClientSocketMessageSender.broadcastuserInfoUpdatedToAll(snapshot);
+            //ClientSocketMessageSender.broadcastuserInfoUpdatedToAll(snapshot);
+            ClientSocketMessageSender.broadcastPlayerSessionUpdatedToAll(snapshot, patch);
 
 
           } catch (err) {

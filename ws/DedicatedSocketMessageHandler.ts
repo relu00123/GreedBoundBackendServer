@@ -3,7 +3,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { getSession, updateSession, sessionMap, Session } from "../services/managers/sessionStore";
 import { handleEscapeRequest,  EscapeRequestMessage } from "../services/managers/EscapeManager";
 import { DungeonManager } from "../services/managers/DungeonManager";
-import { SocketMessage } from "../types/types";
+import { SocketMessage } from "../types/common";
 import { GlobalJobQueue } from "../utils/GlobalJobQueue";
 
  

@@ -1,11 +1,65 @@
 import { WebSocket } from "ws";
 import { GlobalJobQueue } from "../utils/GlobalJobQueue";
 import { FriendRow, PendingRequestRow, SentRequestRow } from "../services/stores/FriendshipStore";
-import { CharacterClassTypeEnum, CharacterClassValueMap, PlayerSession, PlayerSessionPatch, PlayerSessionUpdated } from "../types/types";
+import { CharacterClassTypeEnum, CharacterClassValueMap } from "../types/character";
+import { PlayerSession, PlayerSessionPatch, PlayerSessionUpdated } from "../types/player";
 import { BroadcastSocketMessageUtils } from "../utils/BroadcastSocketMessageUtils";
+import { PartyID } from "../types/party";
+import { PartyManager } from "../services/managers/PartyManager";
+import { SocketMessage } from "../types/common";
 
 // 아직까지는 JobQueue에 연동해야할 부분이 없지만, 필요하다면 만들어지는 함수를 JobQueue에 연동을 해야한다. 
 export class ClientSocketMessageSender {
+
+    /**
+     * @description 특정 파티원들에게만 메시지를 전송합니다.
+     * @param partyId 메시지를 보낼 파티의 ID
+     * @param message 보낼 메시지 객체
+     * @param excludeMemberName 브로드캐스트에서 제외할 멤버의 이름 (선택적)
+     */
+    public static broadcastToParty(partyId: PartyID, message: any, excludeMemberName?: string): void {
+        const partySession = PartyManager.getInstance().getParty(partyId);
+
+        if (!partySession) {
+            console.warn(`파티 ID ${partyId}를 찾을 수 없습니다. 메시지를 전송하지 않습니다.`);
+            return;
+        }
+
+         
+
+        // PartyMember[]를 string[]으로 변환
+        const allMembersUsernames = partySession.members.map(member => member.username);
+        const data = JSON.stringify(message);
+
+        // 제외할 멤버가 있는 경우
+        if (excludeMemberName) {
+            const membersToBroadcast = allMembersUsernames.filter(memberName => memberName !== excludeMemberName);
+            BroadcastSocketMessageUtils.broadcastToSpecificMembers(membersToBroadcast, data);
+        } else {
+            // 제외할 멤버가 없는 경우 모든 멤버에게 전송
+            BroadcastSocketMessageUtils.broadcastToSpecificMembers(allMembersUsernames, data);
+        }
+    }
+
+    /**
+     * @description 특정 웹소켓 연결을 통해 클라이언트에게 메시지를 전송합니다.
+     * @param ws 메시지를 보낼 웹소켓 인스턴스
+     * @param message 전송할 메시지 객체 (SocketMessage 타입)
+     */
+    public static sendToSocket(ws: WebSocket, message: SocketMessage): void {
+        if (ws.readyState === WebSocket.OPEN) {
+            try {
+                const data = JSON.stringify(message);
+                ws.send(data);
+            } catch (error) {
+                console.error("메시지를 JSON으로 변환하거나 전송하는 중 오류가 발생했습니다:", error);
+            }
+        } else {
+            console.warn("웹소켓 연결이 닫혀있어 메시지를 전송할 수 없습니다.");
+        }
+    }
+
+
 
     private static buildUserInfoPayload(s : Readonly<PlayerSession>) {
         return {
@@ -39,6 +93,8 @@ export class ClientSocketMessageSender {
         // 로비 스코프로 제한하고 싶으면 broadcastToLobbyMember(snapshot.lobbyId, msg) 같은 걸로 교체
         BroadcastSocketMessageUtils.broadcastToAllLobbyMember(msg);
     }
+
+     
 
 
     static sendPlayerJoined(ws : WebSocket, userName : string, classType  : string) {

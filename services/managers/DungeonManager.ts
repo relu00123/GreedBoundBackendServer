@@ -2,7 +2,8 @@
 
 import { launchDungeonServer } from "../../utils/launchDungeonServer";
 import { DungeonSessionStore,  } from "../stores/DungeonSessionStore";
-import { MapType, PlayerToken, DungeonToken, DungeonSession} from "../../types/types"
+import { DungeonSession, MapType } from "../../types/dungeon";
+import { PlayerToken, DungeonToken } from "../../types/common";
 import { WebSocket as WSWebSocket } from "ws";
 
 export class DungeonManager {

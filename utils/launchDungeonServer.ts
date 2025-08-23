@@ -1,6 +1,6 @@
 import {spawn } from "child_process"
 import * as crypto from "crypto"
-import { MapType } from "../types/types";
+import { MapType } from "../types/dungeon";
 import { SERVER_CONFIG } from "../config/constants";
 
 let portCounter = 8000;

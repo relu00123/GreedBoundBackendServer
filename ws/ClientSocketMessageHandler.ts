@@ -3,12 +3,16 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { getSession, updateSession, sessionMap, Session } from "../services/managers/sessionStore";
 import { handleEscapeRequest,  EscapeRequestMessage } from "../services/managers/EscapeManager";
 import { DungeonManager } from "../services/managers/DungeonManager";
-import { CharacterClassValueMap, SocketMessage, CharacterClassType, CharacterClassTypeEnum, CharacterClassNameMap, PlayerSessionPatch} from "../types/types";
+import { CharacterClassValueMap, CharacterClassType, CharacterClassTypeEnum, CharacterClassNameMap } from "../types/character";
+import { PlayerToken, SocketMessage } from "../types/common";
+import { PlayerSession } from "../types/player";
 import { PlayerManager } from "../services/managers/PlayerManager";
 import { GlobalJobQueue } from "../utils/GlobalJobQueue";
 import { FriendshipManager } from "../services/managers/FriendshipManager";
 import { ClientSocketMessageSender } from "./ClientSocketMessageSender";
 import { SentRequestRow } from "../services/stores/FriendshipStore";
+import { PlayerSessionPatch } from "../types/player";
+import { PartyMessageHandler } from "./handler/PartyMessageHandler";
 
 
 export function setupClientSocketMessageHandler(ws: WebSocket) {
@@ -20,6 +24,8 @@ export function setupClientSocketMessageHandler(ws: WebSocket) {
      
         switch(msg.type)
         {
+           
+
           case "friend":
             // handleFriendMessage(ws, msg);
             break;

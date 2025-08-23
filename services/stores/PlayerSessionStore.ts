@@ -1,5 +1,7 @@
 
-import { PlayerToken, PlayerSession, CharacterClassType} from "../../types/types"
+import { CharacterClassType } from "../../types/character";
+import { PlayerSession } from "../../types/player";
+import { PlayerToken } from "../../types/common";
 import { WebSocket as WSWebSocket } from "ws";
 
 export class PlayerSessionStore {
@@ -40,6 +42,20 @@ export class PlayerSessionStore {
         }
     }
 
+     /**
+     * @description 주어진 토큰에 해당하는 플레이어 세션을 업데이트합니다.
+     * @param playerToken 업데이트할 플레이어의 토큰
+     * @param playerSession 업데이트할 새로운 세션 데이터
+     */
+    public updatePlayer(playerToken: PlayerToken, playerSession: PlayerSession) {
+        if (!this.sessions.has(playerToken)) {
+            console.error(`[PlayerSessionStore] 업데이트할 토큰이 존재하지 않습니다. playerToken: ${playerToken}`);
+            return;
+        }
+
+        this.sessions.set(playerToken, playerSession);
+    }
+
     public removePlayer(playerToken : PlayerToken) {
         const session = this.sessions.get(playerToken);
 
@@ -58,6 +74,16 @@ export class PlayerSessionStore {
         if (currentWs && this.socketindex.get(currentWs) === playerToken) {
             this.socketindex.delete(currentWs);
         }
+    }
+
+
+     /**
+     * @description 주어진 유저 이름에 해당하는 플레이어 토큰을 반환합니다.
+     * @param username 찾을 플레이어의 이름
+     * @returns 플레이어 토큰 또는 undefined
+     */
+    public getPlayerTokenByUserName(username: string): PlayerToken | undefined {
+        return this.usernameindex.get(username);
     }
 
     public getPlayerSessionByToken(token : PlayerToken) : Readonly<PlayerSession> | undefined {

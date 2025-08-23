@@ -14,7 +14,7 @@ export class BroadcastSocketMessageUtils {
         }
     }
 
-     static broadcastToAllLobbyMember(message: any) {
+    static broadcastToAllLobbyMember(message: any) {
         const allSessions = PlayerManager.getInstance("BroadcastSocketMessageUtils").GetAllPlayerSession();
         const data = JSON.stringify(message);
 
@@ -22,6 +22,18 @@ export class BroadcastSocketMessageUtils {
             const ws = session.ws;
             if (!ws || ws.readyState !== WebSocket.OPEN) continue;
             ws.send(data);
+        }
+    }
+
+    static broadcastToSpecificMembers(members: string[], message : string) : void {
+        const playerManager = PlayerManager.getInstance("BroadcastSocketMessageUtils");
+
+        for (const memberName of members) {
+            const playerSession = playerManager.getPlayerSessionByUserName(memberName);
+
+             if (playerSession && playerSession.ws && playerSession.ws.readyState === WebSocket.OPEN) {
+                playerSession.ws.send(message);
+            }
         }
     }
 }

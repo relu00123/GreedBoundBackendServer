@@ -1,4 +1,6 @@
-import {PlayerToken, PlayerSession, CharacterClassType} from "../../types/types";
+import { PlayerToken } from "../../types/common";
+import { PlayerSession } from "../../types/player";
+import { CharacterClassType } from "../../types/character";
 import { PlayerSessionStore} from "../stores/PlayerSessionStore";
 import { WebSocket as WSWebSocket } from "ws";
 
@@ -11,13 +13,6 @@ export class PlayerManager {
     private constructor() {}
 
     public static getInstance(caller : string) : PlayerManager {
-
-        // 불릴 수 있는 클래스들을 지정해야함.. 
-        // if (caller != "...") {
-        //     throw new Error("Unauthorized access to DungeonManager");
-        // }
-        // 사용중인 클래스 목록
-        // auth.ts 
         return this._instance ??= new PlayerManager();
     }
 
@@ -72,5 +67,33 @@ export class PlayerManager {
         // 3) Store에 위임해서 변경(뮤테이터 필요)
         const updated = this.playerSessionStore.setClassTypeBySocket?.(ws, classType);
         return updated ?? undefined;
+    }
+
+    /**
+     * @description 주어진 플레이어의 세션 정보를 부분적으로 업데이트합니다.
+     * @param username 업데이트할 플레이어의 이름
+     * @param updates 업데이트할 속성들을 담은 객체
+     * @returns 업데이트 성공 여부 (boolean)
+     */
+    public updatePlayerSession(username: string, updates: Partial<PlayerSession>): boolean {
+        const playerToken = this.playerSessionStore.getPlayerTokenByUserName(username);
+        if (!playerToken) {
+            console.error(`Player with username ${username} not found.`);
+            return false;
+        }
+
+        const session = this.playerSessionStore.getPlayerSessionByUserName(username);
+        if (!session) {
+            console.error(`Player session for username ${username} not found.`);
+            return false;
+        }
+
+        // 기존 세션에 업데이트 내용을 병합하여 새로운 객체를 생성
+        const updatedSession: PlayerSession = { ...session, ...updates };
+        
+        // PlayerSessionStore의 updatePlayer 함수를 사용하여 세션 정보를 업데이트합니다.
+        this.playerSessionStore.updatePlayer(playerToken, updatedSession);
+
+        return true;
     }
 }

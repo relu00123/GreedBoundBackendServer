@@ -2,14 +2,14 @@ import WebSocket, { WebSocketServer } from "ws";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { getSession, updateSession, sessionMap, Session } from "../services/managers/sessionStore";
 import { handleEscapeRequest,  EscapeRequestMessage } from "../services/managers/EscapeManager";
+import { SocketMessage, PlayerToken } from "../types/common";
 import { DungeonManager } from "../services/managers/DungeonManager";
-import { SocketMessage} from "../types/types"
 import { PlayerManager } from "../services/managers/PlayerManager";
 import { setupDedicatedSocketMessageHandler } from "./DedicatedSocketMessageHandler";
 import { setupClientSocketMessageHandler } from "./ClientSocketMessageHandler";
 import { BroadcastSocketMessageUtils } from "../utils/BroadcastSocketMessageUtils";
 import { ClientSocketMessageSender } from "../ws/ClientSocketMessageSender";
-import {PlayerToken, PlayerSession} from "../types/types";
+import { PlayerSession } from "../types/player";
 import { GlobalJobQueue } from "../utils/GlobalJobQueue";
 
 export function setupSocket(wss : WebSocketServer) {

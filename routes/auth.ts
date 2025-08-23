@@ -4,7 +4,7 @@ import express, { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { PlayerManager } from "../services/managers/PlayerManager";
-import { PlayerSession } from "../types/types"
+import { PlayerSession } from "../types/player";
 import db from "../config/db";
 import { BroadcastSocketMessageUtils } from "../utils/BroadcastSocketMessageUtils";
 import { ClientSocketMessageSender } from "../ws/ClientSocketMessageSender";

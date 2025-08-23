@@ -1,6 +1,7 @@
 // stores/dungeonSessionStore.ts
 
-import { DungeonToken, PlayerToken, DungeonSession, MapType} from "../../types/types";
+import { DungeonSession, MapType } from "../../types/dungeon";
+import { DungeonToken, PlayerToken } from "../../types/common";
 import { WebSocket as WSWebSocket } from "ws";
 
 export class DungeonSessionStore {

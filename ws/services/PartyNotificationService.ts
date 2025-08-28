@@ -142,6 +142,11 @@ export class PartyNotificationService {
             hostName: party.hostName,
             members: party.members
         };
+
+        // 멤버 배열의 내용을 콘솔에 출력
+        console.log("Party Members to be sent:", partyInfoPayload.members);
+
+
         ClientSocketMessageSender.sendToSocket(newMemberWs, {
             type: "PartyInfoNotification",
             payload: partyInfoPayload

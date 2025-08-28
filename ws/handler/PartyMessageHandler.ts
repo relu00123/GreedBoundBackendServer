@@ -24,9 +24,10 @@ export class PartyMessageHandler {
         console.log("SendPartyInviteRequest Received in PartyMessageHandler");
 
         const inviterPlayer = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionBySocket(ws);
-        const inviteeName = msg.payload.inviteeName; // 초대받은 사람의 이름
+        const inviteeName = msg.Payload.inviteeName; // 초대받은 사람의 이름
 
         if (!inviterPlayer) {
+            console.log("inviter Player Does not Exists");
             PartyNotificationService.sendPartyInviteResponse(ws, { success: false, error: "NOT_AUTHENTICATED" });
             return;
         }
@@ -34,6 +35,7 @@ export class PartyMessageHandler {
         const inviteePlayer = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionByUserName(inviteeName);
 
         if (!inviteePlayer) {
+            console.log("invitee player does not exists");
             PartyNotificationService.sendPartyInviteResponse(ws, { success: false, error: "INVITEE_NOT_FOUND" });
             return;
         }
@@ -43,8 +45,8 @@ export class PartyMessageHandler {
             PartyNotificationService.sendPartyInviteNotification(inviteePlayer.ws, inviterPlayer.username);
         }
 
-        // 초대를 보낸 클라이언트에게 성공 응답을 보냅니다.
-        PartyNotificationService.sendPartyInviteResponse(ws, { success: true, inviteeName });
+        // 초대를 보낸 클라이언트에게 성공 응답을 보냅니다.(굳이.. Popup시스템이 생기고 나서 작업해도 충분)
+        //PartyNotificationService.sendPartyInviteResponse(ws, { success: true, inviteeName });
     }
 
     /**
@@ -56,9 +58,10 @@ export class PartyMessageHandler {
         console.log("AcceptPartyInviteRequest Received in PartyMessageHandler");
 
         const inviteePlayer = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionBySocket(ws);
-        const inviterName = msg.payload.inviterName; // 초대한 사람의 이름
+        const inviterName = msg.Payload.inviterName; // 초대한 사람의 이름
 
         if (!inviteePlayer) {
+            console.log("[PartyMessageHandler.ts] Invitee Player Missing")
             PartyNotificationService.sendAcceptPartyInviteResponse(ws, { success: false, error: "NOT_AUTHENTICATED" });
             return;
         }
@@ -66,6 +69,7 @@ export class PartyMessageHandler {
         const inviterPlayer = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionByUserName(inviterName);
 
         if (!inviterPlayer) {
+            console.log("[PartyMessageHandler.ts] Inviter Player Missing")
             PartyNotificationService.sendAcceptPartyInviteResponse(ws, { success: false, error: "INVITER_NOT_FOUND" });
             return;
         }
@@ -74,7 +78,11 @@ export class PartyMessageHandler {
         const existingPartyId = inviterPlayer.party_id;
         let newPartyID: PartyID;
 
+        // 이미 inviter가 파티에 있는 경우
         if (existingPartyId) {
+
+            console.log("기존 파티가 있으므로 기존 파티에 신규 파티원을 추가합니다..");
+
             const existingParty = PartyManager.getInstance().getParty(existingPartyId);
 
             if (!existingParty) {
@@ -106,15 +114,20 @@ export class PartyMessageHandler {
 
             return;
 
-        } else {
+        } 
+        
+        // inviter가 현재 파티 상태에 없는 경우
+        else {
             // inviter가 파티에 속해 있지 않으므로, 새로운 파티를 만듭니다.
             newPartyID = PartyManager.getInstance().createParty(inviterPlayer.username);
 
+             console.log(`새로운 파티를 만듭니다! 파티장: ${inviterPlayer.username}`);
+
             // inviterPlayer와 inviteePlayer 모두를 파티에 추가합니다.
-            const isInviterAdded = PartyManager.getInstance().addMember(newPartyID, inviterPlayer.username);
+            //const isInviterAdded = PartyManager.getInstance().addMember(newPartyID, inviterPlayer.username);
             const isInviteeAdded = PartyManager.getInstance().addMember(newPartyID, inviteePlayer.username);
 
-            if (!isInviterAdded || !isInviteeAdded) {
+            if (!isInviteeAdded) {
                 // 파티 생성에 실패한 경우
                 PartyNotificationService.sendAcceptPartyInviteResponse(ws, { success: false, error: "PARTY_CREATION_FAILED" });
                 return;
@@ -127,6 +140,7 @@ export class PartyMessageHandler {
             // 새로 생성된 파티 정보를 모든 파티원에게 보냅니다.
             // invitee
             PartyNotificationService.sendPartyInfo(ws, newPartyID);
+            
             // inviter
             const invitersession = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionByUserName(inviterPlayer.username);
             if (invitersession?.ws)

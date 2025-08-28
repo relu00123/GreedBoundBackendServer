@@ -285,6 +285,22 @@ export function setupClientSocketMessageHandler(ws: WebSocket) {
             }
             break;
             
+          case "InviteToParty" : 
+          {
+              console.log("Invite To Party Received");
+              PartyMessageHandler.handleSendPartyInviteRequest(ws, msg);
+              break;
+          }
+
+          case "PartyInviteAccept" : 
+          {
+              console.log("Party Invite Accept Received");
+              PartyMessageHandler.handleAcceptPartyInviteRequest(ws, msg);
+              break;
+          }
+           
+
+
           default:
             ws.send(JSON.stringify({error : `Unknown message type : ${msg.type}`}));
             break;

@@ -11,6 +11,7 @@ import { BroadcastSocketMessageUtils } from "../utils/BroadcastSocketMessageUtil
 import { ClientSocketMessageSender } from "../ws/ClientSocketMessageSender";
 import { PlayerSession } from "../types/player";
 import { GlobalJobQueue } from "../utils/GlobalJobQueue";
+import { PartyNotificationService } from "./services/PartyNotificationService";
 
 export function setupSocket(wss : WebSocketServer) {
     wss.on("connection", (ws: WebSocket, req) => {
@@ -80,6 +81,10 @@ export function setupSocket(wss : WebSocketServer) {
                                 // DedicatedSession 관리중인 것 삭제 및 DedicatedServer 로직 종료 필요
                                 // 로그도 조금더 자세하게 작성해줘야 함. 어떤 DedicatedServer가 종료된 것인지. 
                                 console.log(`[SetupSocket] Client Disconnected`);
+
+                                // 본인이 속한 파티원들에게 떠남을 알림
+                                //PartyNotificationService.notifyMemberLeft()
+
 
                                 // 본인을 제외한 모든 접속중인 Client에게 퇴장 사실을 알림
                                 BroadcastSocketMessageUtils.broadcastToAllLobbyMemberExceptSender(ws, {

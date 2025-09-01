@@ -3,6 +3,7 @@ import { PlayerSession } from "../../types/player";
 import { CharacterClassType } from "../../types/character";
 import { PlayerSessionStore} from "../stores/PlayerSessionStore";
 import { WebSocket as WSWebSocket } from "ws";
+import { PartyManager } from "./PartyManager";
 
 export class PlayerManager {
     private static _instance : PlayerManager | null = null;
@@ -95,5 +96,21 @@ export class PlayerManager {
         this.playerSessionStore.updatePlayer(playerToken, updatedSession);
 
         return true;
+    }
+
+    public handleLogoutByToken(caller : string, token : PlayerToken) : { ok: boolean; reason?: string} {
+        const session = this.getPlayerSessionByToken(token);
+        if(!session) return { ok: false, reason: "NO_SESSION"};
+
+        // 파티가 있을 경우
+        const partyId = session.party_id;
+        if (partyId != null) {
+            const partyMgr = PartyManager.getInstance();
+
+            partyMgr.removeMember(partyId, session.username);
+        }
+
+        this.removePlayerSession(token);
+        return { ok :true};
     }
 }

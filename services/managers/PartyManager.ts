@@ -1,5 +1,5 @@
 import { PartySessionStore } from "../stores/PartySessionStore";
-import { PartyID, PartySession, PartyMember } from "../../types/party";
+import { PartyID, PartySession, PartyMember, RemoveMemberResult } from "../../types/party";
 import { PartyNotificationService } from "../../ws/services/PartyNotificationService";
 import { BroadcastSocketMessageUtils } from "../../utils/BroadcastSocketMessageUtils";
 
@@ -14,6 +14,11 @@ export class PartyManager {
         // PartyManager만이 PartySessionStore에 접근 가능하도록 호출자 이름을 전달합니다.
         this.store = PartySessionStore.getInstance("PartyManager");
         this.notificationService = new PartyNotificationService();
+    }
+
+    private pickNewHost(session : PartySession) : string | null {
+        // 단순히 현제 맨 앞 멤버로. 나중에 로직 수정 필요시 변겨하면 된다.
+        return session.members.length > 0 ? session.members[0].username : null;
     }
 
     /**
@@ -94,32 +99,69 @@ export class PartyManager {
      * @param partyID 멤버가 탈퇴할 파티의 ID
      * @param memberName 탈퇴하는 멤버의 이름
      */
-    public removeMember(partyID: PartyID, memberName: string): void {
+    public removeMember(partyID: PartyID, memberName: string): RemoveMemberResult {
         const session = this.store.getSession(partyID);
+
+        const oldHost = session?.hostName;
 
         if (!session) {
             console.error("Party not found.");
-            return;
+            return { ok : false, reason : "PARTY_NOT_FOUND"};
         }
 
         const memberIndex = session.members.findIndex(member => member.username === memberName);
         if (memberIndex === -1) {
             console.error("Member not found in the party.");
-            return;
+            return { ok : false, reason : "MEMBER_NOT_FOUND"};
         }
-        
+
+        const wasHost = session.hostName === memberName;
+
+        // 1. 멤버 제거        
         session.members.splice(memberIndex, 1);
 
+        // 2. 결과 분기
         if (session.members.length === 0) {
+
+            // 파티 해산
             this.store.deleteSession(partyID);
+
+            // 파티 해산 및 멤버 탈되
+            PartyNotificationService.notifyMemberLeft(partyID, memberName); // 파티장 자기 자신이라 의미 없을 듯..?
+            PartyNotificationService.notifyPartyDisbanded(partyID);
+
+            return { ok: true, wasHost, isDisbanded : true};
         }
-        else if (session.hostName === memberName) {
-            session.hostName = session.members[0].username;
-            this.store.updateSession(partyID, session);
+
+        let newHost: string | undefined;
+
+        if (wasHost) {
+            // 호스트 위임
+            const picked = this.pickNewHost(session);
+            if (picked) {
+                session.hostName = picked;
+                newHost = picked; 
+            }
         }
-        else {
-            this.store.updateSession(partyID, session);
+
+        // 저장
+        this.store.updateSession(partyID, session);
+
+        // 알림
+        //  
+         PartyNotificationService.notifyMemberLeft(partyID, memberName);
+        if (wasHost && newHost && oldHost) {
+            PartyNotificationService.notifyHostTransferred(partyID, oldHost, newHost)
         }
+
+        return {
+            ok : true,
+            wasHost,
+            isDisbanded : false,
+            newHost,
+            party : this.store.getSession(partyID),  // 변경 후 스냅샷 
+        };
+ 
     }
 
      /**
@@ -154,6 +196,24 @@ export class PartyManager {
      */
     public getParty(partyId: PartyID): Readonly<PartySession> | undefined {
         return this.store.getSession(partyId);
+    }
+
+
+     /**
+     * @description 특정 멤버가 해당 파티의 파티장인지 확인합니다.
+     * @param partyID 파티의 ID
+     * @param targetNickname 확인할 멤버의 닉네임
+     * @returns true면 파티장, false면 아님
+     */
+    public isHost(partyID: PartyID, targetNickname: string): boolean {
+        const session = this.store.getSession(partyID);
+
+        if (!session) {
+            console.error("Party not found.");
+            return false;
+        }
+
+        return session.hostName === targetNickname;
     }
 
      

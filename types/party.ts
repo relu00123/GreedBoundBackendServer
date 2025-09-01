@@ -42,3 +42,12 @@ export interface PartyHostTransferred {
   oldHostName: string;
   newHostName: string;
 }
+
+export interface RemoveMemberResult {
+  ok : boolean;
+  reason? : "PARTY_NOT_FOUND" | "MEMBER_NOT_FOUND";
+  wasHost? : boolean;
+  isDisbanded? : boolean;
+  newHost? : string;
+  party? : Readonly<PartySession>; // 변경 후 스냅샷 
+}

@@ -1,7 +1,7 @@
 import WebSocket, { WebSocketServer } from "ws";      
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { getSession, updateSession, sessionMap, Session } from "../services/managers/sessionStore";
-import { handleEscapeRequest,  EscapeRequestMessage } from "../services/managers/EscapeManager";
+//import { handleEscapeRequest,  EscapeRequestMessage } from "../services/managers/EscapeManager";
 import { SocketMessage, PlayerToken } from "../types/common";
 import { DungeonManager } from "../services/managers/DungeonManager";
 import { PlayerManager } from "../services/managers/PlayerManager";
@@ -82,8 +82,7 @@ export function setupSocket(wss : WebSocketServer) {
                                 // 로그도 조금더 자세하게 작성해줘야 함. 어떤 DedicatedServer가 종료된 것인지. 
                                 console.log(`[SetupSocket] Client Disconnected`);
 
-                                // 본인이 속한 파티원들에게 떠남을 알림
-                                //PartyNotificationService.notifyMemberLeft()
+                              
 
 
                                 // 본인을 제외한 모든 접속중인 Client에게 퇴장 사실을 알림

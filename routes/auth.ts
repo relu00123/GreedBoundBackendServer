@@ -95,14 +95,21 @@ router.post("/logout", async (req: Request, res: Response) => {
   const result = await new Promise<{ code: number; data: any }>((resolve) => {
     GlobalJobQueue.execute(async () => {
       const playerManager = PlayerManager.getInstance("logout");
-      const session = playerManager.getPlayerSessionByToken(token);
+
+       const session = playerManager.getPlayerSessionByToken(token);
 
       if (!session) {
         return resolve({ code: 404, data: { success: false, message: "세션 없음" } });
       }
 
-      playerManager.removePlayerSession(token);
-      console.log(`🚪 [Logout] ${session.username} 로그아웃 완료`);
+     // HandleLogoutByToken에서 Player로 부터 Logout 패킷을 받았을시 해야할 것들을 정의 
+      const outcome = playerManager.handleLogoutByToken("logout", token);
+
+
+      // playerManager.removePlayerSession(token);
+      if (outcome.ok) {
+        console.log(`🚪 [Logout] ${session.username} 로그아웃 완료`);
+      }
 
       resolve({ code: 200, data: { success: true, message: "로그아웃 성공" } });
     });

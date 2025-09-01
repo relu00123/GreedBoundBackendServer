@@ -43,6 +43,20 @@ export interface PartyInfoNotificationPayload {
 export class PartyNotificationService {
 
     /**
+    * @description (헬퍼) 특정 파티의 최신 PartyInfoNotificationPayload 생성
+    */
+    private static buildPartyInfoPayload(partyID: PartyID): PartyInfoNotificationPayload | null {
+    const party = PartyManager.getInstance().getParty(partyID);
+    if (!party) return null;
+
+    return {
+      partyId: party.partyId,
+      hostName: party.hostName,
+      members: party.members
+    };
+    }
+
+    /**
      * @description 클라이언트에게 파티 초대 응답을 보냅니다.
      * @param ws 메시지를 보낼 웹소켓 인스턴스
      * @param payload 응답 페이로드 객체
@@ -126,6 +140,28 @@ export class PartyNotificationService {
     }
 
     /**
+     * @description 파티에서 멤버가 추방되었음을 모든 파티원에게 알립니다.
+     * @param partyID 추방이 일어난 파티의 ID
+     * @param kickedMemberName 추방된 멤버의 이름
+     * @param excludeNotifyMemberName 특정 멤버에게는 알리지 않을 경우 (선택)
+     */
+    public static notifyMemberKicked(partyID: PartyID, kickedMemberName: string, excludeNotifyMemberName?: string): void {
+        const payload: PartyMemberLeft = {
+            partyId: partyID,
+            memberName: kickedMemberName,
+        };
+
+        ClientSocketMessageSender.broadcastToParty(
+            partyID,
+            {
+                type: "PartyMemberKicked",
+                payload: payload,
+            },
+            excludeNotifyMemberName
+        );
+    }
+
+    /**
      * @description 특정 멤버에게 파티의 전체 정보를 보냅니다.
      * @param newMemberWs 새로 추가된 멤버의 웹소켓 인스턴스
      * @param partyID 파티 ID
@@ -172,5 +208,15 @@ export class PartyNotificationService {
         });
     }
 
+
+     /**
+    * @description 파티 해산 알림 (마지막 멤버 탈퇴 등으로 세션 제거될 때)  
+    */
+    public static notifyPartyDisbanded(partyID: PartyID): void {
+        ClientSocketMessageSender.broadcastToParty(partyID, {
+            type: "PartyDisbanded",
+            payload: { partyId: partyID }
+        });
+    }
 
 }

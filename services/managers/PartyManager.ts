@@ -1,7 +1,9 @@
 import { PartySessionStore } from "../stores/PartySessionStore";
-import { PartyID, PartySession, PartyMember, RemoveMemberResult } from "../../types/party";
+import { PartyID, PartySession, PartyMember, RemoveMemberResult, PartyInviteResult } from "../../types/party";
 import { PartyNotificationService } from "../../ws/services/PartyNotificationService";
 import { BroadcastSocketMessageUtils } from "../../utils/BroadcastSocketMessageUtils";
+import { PlayerManager } from "./PlayerManager";
+import { WebSocket } from "ws";
 
 export class PartyManager {
     private static _instance: PartyManager | null = null;
@@ -120,15 +122,20 @@ export class PartyManager {
         // 1. 멤버 제거        
         session.members.splice(memberIndex, 1);
 
+        // 현재 남은 파티원들 알림
+        console.log(`[PartyManager.ts] 남은 파티인원 목록 : 파티 ID : ${session.partyId}, 파티원 목록 ${JSON.stringify(session.members)}`);
+
+
         // 2. 결과 분기
         if (session.members.length === 0) {
-
-            // 파티 해산
-            this.store.deleteSession(partyID);
+             console.log(`[PartyManager.ts] 파티 ID ${session.partyId}의 멤버가 0명입니다. 파티를 해산합니다.`);
 
             // 파티 해산 및 멤버 탈되
             PartyNotificationService.notifyMemberLeft(partyID, memberName); // 파티장 자기 자신이라 의미 없을 듯..?
             PartyNotificationService.notifyPartyDisbanded(partyID);
+
+            // 파티 해산
+            this.store.deleteSession(partyID);
 
             return { ok: true, wasHost, isDisbanded : true};
         }
@@ -214,6 +221,47 @@ export class PartyManager {
         }
 
         return session.hostName === targetNickname;
+    }
+
+    public isInAnyParty(username : string) : PartyID | null {
+        const userSession =  PlayerManager.getInstance("PartyManager").getPlayerSessionByUserName(username);
+
+          if (!userSession) {
+            return null;
+        }
+
+        return userSession.party_id ?? null;
+    }
+
+    public handlePartyInviteRequest(inviterWebSocket : WebSocket, inviteeName : string)  {
+
+        const inviterPlayer = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionBySocket(inviterWebSocket);
+        const inviteePlayerSession = PlayerManager.getInstance("PartyManager").getPlayerSessionByUserName(inviteeName);
+
+        if (!inviterPlayer) {
+            console.log("inviter Player Does not Exists");
+            PartyNotificationService.sendPartyInviteResponse(inviterWebSocket , { success: false, error: "NOT_AUTHENTICATED" });
+            return;
+        }
+
+        if (!inviteePlayerSession) {
+            console.log("invitee player does not exists");
+            PartyNotificationService.sendPartyInviteResponse(inviterWebSocket, { success: false, error: "INVITEE_NOT_FOUND" });
+            return;
+        }
+
+        const inviterPartyId = this.isInAnyParty(inviterPlayer.username);
+        const inviteePartyId = this.isInAnyParty(inviteeName);
+
+        if (inviteePartyId !== null)
+        {
+            PartyNotificationService.sendPartyInviteAck(inviterWebSocket, {ok:false, reason : "INVITEE_ALREADY_IN_PARTY"});
+        }
+
+        // 초대를 받은 사람에게 알림을 보낸다. 
+        if (inviteePlayerSession?.ws && inviterPlayerSession) {
+            PartyNotificationService.sendPartyInviteNotification(inviteePlayerSession.ws, inviterPlayerSession.username);
+        }
     }
 
      

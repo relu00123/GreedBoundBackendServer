@@ -4,6 +4,8 @@ import { PartyNotificationService } from "../../ws/services/PartyNotificationSer
 import { BroadcastSocketMessageUtils } from "../../utils/BroadcastSocketMessageUtils";
 import { PlayerManager } from "./PlayerManager";
 import { WebSocket } from "ws";
+import { hostname } from "os";
+import { ClientSocketMessageSender } from "../../ws/ClientSocketMessageSender";
 
 export class PartyManager {
     private static _instance: PartyManager | null = null;
@@ -119,24 +121,33 @@ export class PartyManager {
 
         const wasHost = session.hostName === memberName;
 
-        // 1. 멤버 제거        
+        // 탈퇴 멤버 세션 확보
+        const TargetSession = PlayerManager.getInstance("PartyManager").getPlayerSessionByUserName(memberName);
+
+        // 0. 탈퇴 멤버의 PlayerSession Update 
+        PlayerManager.getInstance("PartyManager").updatePlayerSession(memberName, {party_id : undefined});
+
+        // 1. 파티 목록에서 멤버 제거        
         session.members.splice(memberIndex, 1);
 
-        // 현재 남은 파티원들 알림
+        // 현재 남은 파티원들 로그 
         console.log(`[PartyManager.ts] 남은 파티인원 목록 : 파티 ID : ${session.partyId}, 파티원 목록 ${JSON.stringify(session.members)}`);
-
 
         // 2. 결과 분기
         if (session.members.length === 0) {
              console.log(`[PartyManager.ts] 파티 ID ${session.partyId}의 멤버가 0명입니다. 파티를 해산합니다.`);
 
             // 파티 해산 및 멤버 탈되
-            PartyNotificationService.notifyMemberLeft(partyID, memberName); // 파티장 자기 자신이라 의미 없을 듯..?
-            PartyNotificationService.notifyPartyDisbanded(partyID);
+            PartyNotificationService.notifyMemberLeft(partyID, memberName);  
+            PartyNotificationService.notifyPartyDisbanded(partyID); // 필요없을듯? 
+
+            // 탈퇴 멤버에게도 알림
+            if (TargetSession?.ws) {
+                PartyNotificationService.notifyMemberLeftToSelf(TargetSession.ws, partyID, memberName);
+            }
 
             // 파티 해산
             this.store.deleteSession(partyID);
-
             return { ok: true, wasHost, isDisbanded : true};
         }
 
@@ -150,16 +161,20 @@ export class PartyManager {
                 newHost = picked; 
             }
         }
+ 
+        // 알림
+         PartyNotificationService.notifyMemberLeft(partyID, memberName);
 
         // 저장
         this.store.updateSession(partyID, session);
 
-        // 알림
-        //  
-         PartyNotificationService.notifyMemberLeft(partyID, memberName);
+        // 호스트 변경 알림 
         if (wasHost && newHost && oldHost) {
             PartyNotificationService.notifyHostTransferred(partyID, oldHost, newHost)
         }
+
+        
+       
 
         return {
             ok : true,
@@ -265,6 +280,62 @@ export class PartyManager {
         }
     }
 
-     
+    public handlePartyHostTransferRequset(HostSocket : WebSocket, hostName : string, TargetName : string)
+    {
+        const PartyId = PartyManager.getInstance().isInAnyParty(hostName);
 
+        if (PartyId)
+        {
+            this.transferHost(PartyId, TargetName);
+             PartyNotificationService.notifyHostTransferred(PartyId, hostName, TargetName);
+        }
+    }
+
+    public  handleKickFromPartyRequest(HostSocket : WebSocket, hostName : string, TargetName : string) 
+    {
+        const PartyId = PartyManager.getInstance().isInAnyParty(hostName);
+         
+        if (PartyId) 
+        {
+           const session = this.store.getSession(PartyId);
+
+           if (!session) {
+             console.error("[PartyManager.ts] Party Session not Found");
+             return;
+           }
+
+           const kickTargetIndex = session?.members.findIndex(member => member.username === TargetName);
+           if (kickTargetIndex === -1) {
+            console.error("[PartyManager.ts] Member not found in the party.");
+            return;
+           }
+           
+           // 파티에서 추방당한 멤버를 알려준다. 
+           PartyNotificationService.notifyMemberKicked(PartyId, TargetName);
+
+           // 파티세션의 유저목록 변경
+           session.members.splice(kickTargetIndex, 1);
+
+           // 파티에서 강퇴당한 인원의 파티ID제거 
+           PlayerManager.getInstance("PartyManager").updatePlayerSession(TargetName, { party_id : undefined} );
+
+
+           // 현재 남은 파티원들 알림
+            console.log(`[PartyManager.ts] 남은 파티인원 목록 : 파티 ID : ${session.partyId}, 파티원 목록 ${JSON.stringify(session.members)}`);
+
+           // 저장
+           this.store.updateSession(PartyId, session);
+        }
+    }
+
+    public handleLeaveFromPartyRequest(LeavingSocket : WebSocket) {
+
+        const LeavingSession =  PlayerManager.getInstance("PartyManager").getPlayerSessionBySocket(LeavingSocket);
+
+        if (LeavingSession && LeavingSession.party_id)
+        {   
+            const PartySession = this.store.getSession(LeavingSession.party_id);
+            this.removeMember(LeavingSession.party_id, LeavingSession.username);   
+        }
+    }
 }

@@ -2,6 +2,7 @@ import { PartyManager } from "../../services/managers/PartyManager";
 import { PartyID, PartyMemberJoined, PartyMemberLeft, PartyHostTransferred, PartyMember } from "../../types/party";
 import { ClientSocketMessageSender } from "../ClientSocketMessageSender";
 import { WebSocket } from "ws";
+import { PartyInviteResult } from "../../types/party";
 
 
 /**
@@ -83,6 +84,20 @@ export class PartyNotificationService {
     }
 
     /**
+     * @description 초대를 보낸 사람에게 ack사인을 보냅니다.
+     * @param ws 메세지를 보낼 웹소켓 인스턴스
+     * @param partyInviteResult 파티 초대에 대한 ack 정보 
+     */
+    public static sendPartyInviteAck(ws: WebSocket, partyInviteResult : PartyInviteResult) : void {
+        ClientSocketMessageSender.sendToSocket(ws, {
+            type : "PartyInviteAck",
+            payload : {
+                partyInviteResult
+            }
+        });
+    }
+
+    /**
      * @description 클라이언트에게 파티 초대 수락 응답을 보냅니다.
      * @param ws 메시지를 보낼 웹소켓 인스턴스
      * @param payload 응답 페이로드 객체
@@ -137,6 +152,11 @@ export class PartyNotificationService {
             type: "PartyMemberLeft",
             payload: payload
         }, excludeNotifyMemberName);
+    }
+
+    public static notifyMemberLeftToSelf(targetWs: WebSocket, partyID: PartyID, memberName: string) {
+        const payload: PartyMemberLeft = { partyId: partyID, memberName };
+        ClientSocketMessageSender.sendToSocket(targetWs, { type: "PartyMemberLeft", payload });
     }
 
     /**

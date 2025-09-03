@@ -292,12 +292,32 @@ export function setupClientSocketMessageHandler(ws: WebSocket) {
               break;
           }
 
+          case "PartyHostTransfer" : 
+          {
+              PartyMessageHandler.handlePartyHostTransferRequest(ws, msg);
+              break;
+          }
+
           case "PartyInviteAccept" : 
           {
               console.log("Party Invite Accept Received");
               PartyMessageHandler.handleAcceptPartyInviteRequest(ws, msg);
               break;
           }
+
+          case "KickFromParty" : 
+          {
+              PartyMessageHandler.handleKickFromPartyRequest(ws, msg);
+              break;
+          }
+
+          case "LeaveFromParty" : 
+          {
+              PartyMessageHandler.handleLeaveFromPartyRequest(ws, msg);
+              break;
+          }
+
+        
            
 
 

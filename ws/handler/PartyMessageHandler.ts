@@ -24,13 +24,14 @@ export class PartyMessageHandler {
         console.log("SendPartyInviteRequest Received in PartyMessageHandler");
 
 
-         const inviteeName = msg.Payload.inviteeName; // 초대받은 사람의 이름
+        const inviteeName = msg.Payload.inviteeName; // 초대받은 사람의 이름
+    
         PartyManager.getInstance().handlePartyInviteRequest(ws, inviteeName);
 
 
+        {
+            // const inviterPlayer = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionBySocket(ws);
 
-        // const inviterPlayer = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionBySocket(ws);
-        
 
         // if (!inviterPlayer) {
         //     console.log("inviter Player Does not Exists");
@@ -46,6 +47,8 @@ export class PartyMessageHandler {
         //     return;
         // }
 
+        
+
         // // 초대받은 클라이언트에게 파티 초대 알림을 보냅니다.
         // if (inviteePlayer.ws) {
         //     PartyNotificationService.sendPartyInviteNotification(inviteePlayer.ws, inviterPlayer.username);
@@ -53,6 +56,7 @@ export class PartyMessageHandler {
 
         // 초대를 보낸 클라이언트에게 성공 응답을 보냅니다.(굳이.. Popup시스템이 생기고 나서 작업해도 충분)
         //PartyNotificationService.sendPartyInviteResponse(ws, { success: true, inviteeName });
+        }
     }
 
     /**
@@ -79,6 +83,10 @@ export class PartyMessageHandler {
             PartyNotificationService.sendAcceptPartyInviteResponse(ws, { success: false, error: "INVITER_NOT_FOUND" });
             return;
         }
+
+        // invitee가 이미 파티에 가입되어 있는지 확인합니다. 이 경우 무시
+        if (inviteePlayer.party_id)
+            return;
 
         // inviter가 이미 파티에 있는지 확인합니다.
         const existingPartyId = inviterPlayer.party_id;
@@ -159,5 +167,32 @@ export class PartyMessageHandler {
             //     PartyNotificationService.notifyPartyCreated(inviterPlayer.ws, { partyId: newPartyID, hostName: inviterPlayer.username });
             // }
         }
+    }
+
+    /**
+     * @description 파티 호스트 변경 요청을 처리합니다. 이 요청을 보내는 사람은 Host여야만 합니다. 
+     * @param ws 클라이언트 웹소켓 인스턴스 (현재 파티의 Host)
+     * @param msg 수신된 메시지 객체
+     */
+    public static handlePartyHostTransferRequest(ws: WebSocket, msg: SocketMessage): void {
+         console.log("[PartyMessageHandler.ts] HandlePartyHostTransferRequset Received");
+
+        const HostName = msg.Payload.HostNickName;   // 현재 파티 호스트 이름 
+        const TargetName  = msg.Payload.TargetNickName; // 파티장을 넘겨줄 플레이어 이름
+        PartyManager.getInstance().handlePartyHostTransferRequset(ws, HostName, TargetName);
+    }
+
+    public static handleKickFromPartyRequest(ws: WebSocket, msg: SocketMessage): void {
+        console.log("[PartyMessageHandler.ts], HandleKickFromPartyRequest Received");
+
+        const HostName = msg.Payload.HostNickName;
+        const TargetName = msg.Payload.TargetNickName; 
+        PartyManager.getInstance().handleKickFromPartyRequest(ws, HostName, TargetName);
+    }
+
+    public static handleLeaveFromPartyRequest(ws : WebSocket, msg : SocketMessage) : void {
+        console.log("[PartyMessageHandler.ts], HandleLeaveFromParty Received");
+
+        PartyManager.getInstance().handleLeaveFromPartyRequest(ws);
     }
 }

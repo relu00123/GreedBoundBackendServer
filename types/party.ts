@@ -18,6 +18,19 @@ export interface PartySession {
     members: PartyMember[];
 }
 
+export type PartyInviteResult =
+  | { ok: true } // 성공
+  | { ok: false; reason: PartyInviteFailureReason }; // 실패
+
+export type PartyInviteFailureReason =
+  | "INVITER_NOT_FOUND"
+  | "INVITEE_NOT_FOUND"
+  | "INVITEE_ALREADY_IN_PARTY"
+  | "INVITER_NOT_HOST"
+  | "ALREADY_IN_SAME_PARTY"
+  | "DUP_INVITE"
+  | "UNKNOWN";
+
 /**
  * @description 멤버가 파티에 합류했음을 알리는 메시지의 페이로드입니다.
  */

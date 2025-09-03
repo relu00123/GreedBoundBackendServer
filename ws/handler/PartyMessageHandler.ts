@@ -23,27 +23,33 @@ export class PartyMessageHandler {
     public static handleSendPartyInviteRequest(ws: WebSocket, msg: SocketMessage): void {
         console.log("SendPartyInviteRequest Received in PartyMessageHandler");
 
-        const inviterPlayer = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionBySocket(ws);
-        const inviteeName = msg.Payload.inviteeName; // 초대받은 사람의 이름
 
-        if (!inviterPlayer) {
-            console.log("inviter Player Does not Exists");
-            PartyNotificationService.sendPartyInviteResponse(ws, { success: false, error: "NOT_AUTHENTICATED" });
-            return;
-        }
+         const inviteeName = msg.Payload.inviteeName; // 초대받은 사람의 이름
+        PartyManager.getInstance().handlePartyInviteRequest(ws, inviteeName);
 
-        const inviteePlayer = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionByUserName(inviteeName);
 
-        if (!inviteePlayer) {
-            console.log("invitee player does not exists");
-            PartyNotificationService.sendPartyInviteResponse(ws, { success: false, error: "INVITEE_NOT_FOUND" });
-            return;
-        }
 
-        // 초대받은 클라이언트에게 파티 초대 알림을 보냅니다.
-        if (inviteePlayer.ws) {
-            PartyNotificationService.sendPartyInviteNotification(inviteePlayer.ws, inviterPlayer.username);
-        }
+        // const inviterPlayer = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionBySocket(ws);
+        
+
+        // if (!inviterPlayer) {
+        //     console.log("inviter Player Does not Exists");
+        //     PartyNotificationService.sendPartyInviteResponse(ws, { success: false, error: "NOT_AUTHENTICATED" });
+        //     return;
+        // }
+
+        // const inviteePlayer = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionByUserName(inviteeName);
+
+        // if (!inviteePlayer) {
+        //     console.log("invitee player does not exists");
+        //     PartyNotificationService.sendPartyInviteResponse(ws, { success: false, error: "INVITEE_NOT_FOUND" });
+        //     return;
+        // }
+
+        // // 초대받은 클라이언트에게 파티 초대 알림을 보냅니다.
+        // if (inviteePlayer.ws) {
+        //     PartyNotificationService.sendPartyInviteNotification(inviteePlayer.ws, inviterPlayer.username);
+        // }
 
         // 초대를 보낸 클라이언트에게 성공 응답을 보냅니다.(굳이.. Popup시스템이 생기고 나서 작업해도 충분)
         //PartyNotificationService.sendPartyInviteResponse(ws, { success: true, inviteeName });

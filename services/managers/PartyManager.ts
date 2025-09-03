@@ -1,5 +1,5 @@
 import { PartySessionStore } from "../stores/PartySessionStore";
-import { PartyID, PartySession, PartyMember, RemoveMemberResult, PartyInviteResult } from "../../types/party";
+import { PartyID, PartySession, PartyMember, RemoveMemberResult } from "../../types/party";
 import { PartyNotificationService } from "../../ws/services/PartyNotificationService";
 import { BroadcastSocketMessageUtils } from "../../utils/BroadcastSocketMessageUtils";
 import { PlayerManager } from "./PlayerManager";
@@ -255,12 +255,13 @@ export class PartyManager {
 
         if (inviteePartyId !== null)
         {
-            PartyNotificationService.sendPartyInviteAck(inviterWebSocket, {ok:false, reason : "INVITEE_ALREADY_IN_PARTY"});
+            PartyNotificationService.sendPartyInviteResponse(inviterWebSocket, {success:false, error : "INVITEE_ALREADY_IN_PARTY", inviteeName : inviteeName});
+            return;
         }
 
         // 초대를 받은 사람에게 알림을 보낸다. 
-        if (inviteePlayerSession?.ws && inviterPlayerSession) {
-            PartyNotificationService.sendPartyInviteNotification(inviteePlayerSession.ws, inviterPlayerSession.username);
+        if (inviteePlayerSession?.ws && inviterPlayer) {
+            PartyNotificationService.sendPartyInviteNotification(inviteePlayerSession.ws, inviterPlayer.username);
         }
     }
 

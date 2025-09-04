@@ -12,6 +12,8 @@ router.post("/start", authenticateToken, (req: Request, res: Response) => {
 
   const token = req.headers.authorization?.split(" ")[1];
   if (token !== undefined ) {
+
+    // 매칭을 보낸사람 : 파티장 or 파티에 가입하지 않고 솔로큐를 돌리는 사람 
     const session = PlayerManager.getInstance("match").getPlayerSessionByToken(token);
 
     if (!session) {

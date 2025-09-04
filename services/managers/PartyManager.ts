@@ -165,6 +165,12 @@ export class PartyManager {
         // 알림
          PartyNotificationService.notifyMemberLeft(partyID, memberName);
 
+        // 탈퇴 멤버에게도 알림
+        if (TargetSession?.ws) {
+            PartyNotificationService.notifyMemberLeftToSelf(TargetSession.ws, partyID, memberName);
+        }
+
+
         // 저장
         this.store.updateSession(partyID, session);
 
@@ -172,9 +178,6 @@ export class PartyManager {
         if (wasHost && newHost && oldHost) {
             PartyNotificationService.notifyHostTransferred(partyID, oldHost, newHost)
         }
-
-        
-       
 
         return {
             ok : true,

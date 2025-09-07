@@ -4,6 +4,8 @@ import { CharacterClassType } from "../../types/character";
 import { PlayerSessionStore} from "../stores/PlayerSessionStore";
 import { WebSocket as WSWebSocket } from "ws";
 import { PartyManager } from "./PartyManager";
+import { ClientGamePhase } from "../../constants/ClientGamePhase";
+import { ClientSocketMessageSender } from "../../ws/ClientSocketMessageSender";
 
 export class PlayerManager {
     private static _instance : PlayerManager | null = null;
@@ -112,5 +114,39 @@ export class PlayerManager {
 
         this.removePlayerSession(token);
         return { ok :true};
+    }
+
+    public handleGamePhaseChangeRequset(RequestSocket : WSWebSocket , TargetGamePhase : ClientGamePhase) {
+        
+        // 1. 소캣으로부터 플레이어 세션 찾기
+        const playerSession = this.getPlayerSessionBySocket(RequestSocket);
+        if (!playerSession) {
+            console.warn("[PlayerManager.ts] PlayerSession not found");
+            return;
+        }
+
+        // 2. 해당 플레이어 세션의 GamePhase 업데이트
+        this.updatePlayerSession(playerSession?.username, {gamePhase: TargetGamePhase});
+
+        // 3. 모든 클라이언트들에게 BroadCast
+        const snapshot = this.getPlayerSessionByUserName(playerSession.username);
+
+        if (snapshot) {
+            ClientSocketMessageSender.broadcastPlayerSessionUpdatedToAll(snapshot, { gamePhase : TargetGamePhase});
+        }
+    }
+
+    public handleLobbyUserListRequest(RequestSocket : WSWebSocket) {
+
+        console.log("LobbyUserListRequest Received");
+
+        const LobbyUsers = this.GetAllPlayerSession();
+
+        console.log("🧍 Currently Connected Users:");
+        LobbyUsers.forEach((user, index) => {
+            console.log(`  ${index + 1}. ${user.username} (${user.classType})`);
+        });
+
+        ClientSocketMessageSender.sendLobbyUserList(RequestSocket, LobbyUsers);
     }
 }

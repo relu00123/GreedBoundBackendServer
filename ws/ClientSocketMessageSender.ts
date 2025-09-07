@@ -25,8 +25,6 @@ export class ClientSocketMessageSender {
             return;
         }
 
-         
-
         // PartyMember[]를 string[]으로 변환
         const allMembersUsernames = partySession.members.map(member => member.username);
         const data = JSON.stringify(message);
@@ -66,6 +64,7 @@ export class ClientSocketMessageSender {
             username : s.username,
             classType : s.classType,
             classTypeEnum : CharacterClassValueMap[s.classType],
+            gamePhase : s.gamePhase,
         } as const;
     }
 
@@ -94,21 +93,31 @@ export class ClientSocketMessageSender {
         BroadcastSocketMessageUtils.broadcastToAllLobbyMember(msg);
     }
 
-     
-
-
-    static sendPlayerJoined(ws : WebSocket, userName : string, classType  : string) {
-        ws.send(JSON.stringify({
-            type: "playerJoined",
-            payload: { userName, classType }
-        }));
-    }
+    
+    // static sendPlayerJoined(ws : WebSocket, userName : string, classType  : string) {
+    //     ws.send(JSON.stringify({
+    //         type: "playerJoined",
+    //         payload: { userName, classType }
+    //     }));
+    // }
 
     static sendPlayerLeft(ws : WebSocket, userName : string) {
         ws.send(JSON.stringify({
             type: "playerLeft",
             payload : {userName}
         }));
+    }
+
+    static sendLobbyUserList(ws : WebSocket, sessions : Readonly<PlayerSession>[]) {
+
+        const payload = sessions.map(s=> this.buildUserInfoPayload(s));
+
+        const message = {
+            type : "LobbyUserListResponse",
+            payload : payload
+        };
+
+        ws.send(JSON.stringify(message));
     }
 
     static sendFriendListResponse(ws : WebSocket, friendList : FriendRow[]) {

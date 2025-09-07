@@ -13,6 +13,7 @@ import { ClientSocketMessageSender } from "./ClientSocketMessageSender";
 import { SentRequestRow } from "../services/stores/FriendshipStore";
 import { PlayerSessionPatch } from "../types/player";
 import { PartyMessageHandler } from "./handler/PartyMessageHandler";
+import { GamePhaseMessageHandler } from "./handler/GamePhaseMessageHandler";
 
 
 export function setupClientSocketMessageHandler(ws: WebSocket) {
@@ -149,22 +150,25 @@ export function setupClientSocketMessageHandler(ws: WebSocket) {
           }
 
           case "LobbyUserListRequest":
-             
-            console.log("LobbyUserListRequest Received");
 
-            const users = PlayerManager.getInstance("ClientSocketMessageHandler").getAllLobbyUserNameAndClass();
-
-            console.log("🧍 Currently Connected Users:");
-              users.forEach((user, index) => {
-              console.log(`  ${index + 1}. ${user.username} (${user.classType})`);
-            });
-
-            ws.send(JSON.stringify({
-              type: "LobbyUserListResponse",
-              payload : users
-            }))
-           
+            PlayerManager.getInstance("ClientSocketMessageHandler").handleLobbyUserListRequest(ws);
             break;
+             
+            // console.log("LobbyUserListRequest Received");
+
+            // const users = PlayerManager.getInstance("ClientSocketMessageHandler").getAllLobbyUserNameAndClass();
+
+            // console.log("🧍 Currently Connected Users:");
+            //   users.forEach((user, index) => {
+            //   console.log(`  ${index + 1}. ${user.username} (${user.classType})`);
+            // });
+
+            // ws.send(JSON.stringify({
+            //   type: "LobbyUserListResponse",
+            //   payload : users
+            // }))
+           
+            //break;
 
           case "FriendListRequest":
             {
@@ -317,6 +321,11 @@ export function setupClientSocketMessageHandler(ws: WebSocket) {
               break;
           }
 
+          case "GamePhaseChangeRequest" : 
+          {
+            GamePhaseMessageHandler.handleGamePhaseChangeRequest(ws, msg);
+            break;
+          }
         
            
 

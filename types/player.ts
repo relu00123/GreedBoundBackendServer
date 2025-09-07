@@ -1,3 +1,4 @@
+import { ClientGamePhase } from "../constants/ClientGamePhase";
 import { CharacterClassTypeEnum, CharacterClassType } from "./character";
 import { PartyID} from "./party";
 import { WebSocketServer, WebSocket as WSWebSocket } from "ws";
@@ -16,6 +17,7 @@ export type PlayerSessionPatch = Partial<{
   classType: CharacterClassTypeEnum;  // Enum 기반 
   partyId: PartyID | null;
   online: boolean;
+  gamePhase : ClientGamePhase;
 }>;
 
 export type PlayerSession = {
@@ -27,4 +29,7 @@ export type PlayerSession = {
 
   // 파티에 관련된 정보 
   party_id? : PartyID;
+
+  // 게임 페이즈에 관련 된정보
+  gamePhase : ClientGamePhase;
 }

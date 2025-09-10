@@ -251,6 +251,16 @@ export class PartyManager {
         return userSession.party_id ?? null;
     }
 
+    public getPartyMemberUsernames(partyId : PartyID) : string[] {
+        const s = this.store.getSession(partyId);
+        if (!s) {
+            throw new Error(`Party ${partyId} not found`);
+        }
+        return s.members.map(m => m.username);
+    }
+
+
+    // Handles
     public handlePartyInviteRequest(inviterWebSocket : WebSocket, inviteeName : string)  {
 
         const inviterPlayer = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionBySocket(inviterWebSocket);

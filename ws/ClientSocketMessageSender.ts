@@ -7,9 +7,59 @@ import { BroadcastSocketMessageUtils } from "../utils/BroadcastSocketMessageUtil
 import { PartyID } from "../types/party";
 import { PartyManager } from "../services/managers/PartyManager";
 import { SocketMessage } from "../types/common";
+import { Match, MapId } from "../types/match";
+
+// 필요하다면 type을 다른곳으로 빼기 (09.10 추가)
+export type MatchFoundMessage = {
+  type: "MatchFound";
+  payload: {
+    matchId: string;
+    mapId: MapId;
+    teamId: string;
+    teamMembers: string[];
+    serverAddr: string;
+    token?: string | null;
+  };
+};
+
 
 // 아직까지는 JobQueue에 연동해야할 부분이 없지만, 필요하다면 만들어지는 함수를 JobQueue에 연동을 해야한다. 
 export class ClientSocketMessageSender {
+
+    // 09.10 추가 
+    /** 여러 유저에게 동일 메시지 전송 (편의) */
+    public static sendToUsers(usernames: string[], message: any) {
+        const data = JSON.stringify(message);
+        BroadcastSocketMessageUtils.broadcastToSpecificMembers(usernames, data);
+    }
+
+    /** 유저 한 명에게 전송 (토큰 등 사용자별 페이로드가 다를 때 사용) */
+    public static sendToUser(username: string, message: any) {
+        this.sendToUsers([username], message);
+    }
+
+    /** 매치 발차 알림: 팀원별로 토큰이 다를 수 있으므로 개인별 전송 */
+    public static sendMatchFound(match: Match, serverAddr: string, tokensByUser: Record<string, string | undefined>) {
+        for (const team of match.teams) {
+        for (const username of team.members) {
+            const msg: MatchFoundMessage = {
+            type: "MatchFound",
+            payload: {
+                matchId: match.matchId,
+                mapId: match.mapId,
+                teamId: team.teamId,
+                teamMembers: team.members,
+                serverAddr,
+                token: tokensByUser[username] ?? null,
+            },
+            };
+            this.sendToUser(username, msg);
+        }
+        }
+    }
+    // 09.10 추가완 
+
+
 
     /**
      * @description 특정 파티원들에게만 메시지를 전송합니다.

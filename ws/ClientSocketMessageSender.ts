@@ -38,6 +38,52 @@ export class ClientSocketMessageSender {
         this.sendToUsers([username], message);
     }
 
+    static sendMatchFoundToUsers(usernames: string[], msg: any) {
+        BroadcastSocketMessageUtils.broadcastToSpecificMembers(usernames, JSON.stringify(msg));
+    }
+
+    static broadcastMatchAssigned(match: Match) {
+        for (const team of match.teams) {
+        for (const username of team.members) {
+            this.sendToUser(username, {
+            type: "MatchAssigned",
+            payload: {
+                matchId: match.matchId,
+                mapId: match.mapId,
+                teamId: team.teamId,
+                teamMembers: team.members,
+            }
+            });
+        }
+        }
+    }
+
+    static broadcastDungeonReady(match: Match, serverAddr: string, tokensByUser: Record<string, string>) {
+        for (const team of match.teams) {
+        for (const username of team.members) {
+            this.sendToUser(username, {
+            type: "DungeonReady",
+            payload: {
+                matchId: match.matchId,
+                serverAddr,
+                token: tokensByUser[username] ?? null
+            }
+            });
+        }
+        }
+    }
+
+    static broadcastMatchFailed(match: Match, reason: string) {
+        for (const team of match.teams) {
+        for (const username of team.members) {
+            this.sendToUser(username, {
+            type: "MatchFailed",
+            payload: { matchId: match.matchId, reason }
+            });
+        }
+        }
+    }
+
     /** 매치 발차 알림: 팀원별로 토큰이 다를 수 있으므로 개인별 전송 */
     public static sendMatchFound(match: Match, serverAddr: string, tokensByUser: Record<string, string | undefined>) {
         for (const team of match.teams) {

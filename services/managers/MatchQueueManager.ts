@@ -5,7 +5,7 @@ import { TeamJoinPolicy, MapId, Match, UserId, TicketId } from "../../types/matc
 // 구현 클래스 직접 사용(자체 주입)
 //import { PlayerManager } from "./PlayerManager";
 import { PartyManager } from "./PartyManager";
-//import { DungeonManager } from "./DungeonManager";
+import { DungeonManager } from "./DungeonManager";
 import { ClientSocketMessageSender } from "../../ws/ClientSocketMessageSender";
 
 type AgingPolicy = { maxWaitMs: number; minTeamsToLaunch: number };
@@ -29,12 +29,30 @@ export class MatchQueueManager {
     this.store.setOnMatchLaunched((m) => this.onMatchLaunched(m));
   }
 
-  private onMatchLaunched(match : Match) {
-    // 나중에 실제 적용
-    // const { serverAddr, tokensByUser } = DungeonManager.getInstance().startMatch(match);
-    // ClientSocketMessageSender.sendMatchFound(match, serverAddr, tokensByUser);
-    this.refreshActive(match.mapId);
-    console.log("MATCH LAUNCHED\n", JSON.stringify(match, null, 2));
+  private async onMatchLaunched(match: Match) {
+    const dm = DungeonManager.getInstance();
+
+    // 1) 즉시 "MatchAssigned" 전송 (서버 준비 전)
+    ClientSocketMessageSender.broadcastMatchAssigned(match);
+
+    const { dungeonId, serverAddr, tokensByUser } = dm.startMatch(match);
+    try {
+      await dm.whenReady(dungeonId, 15_000, 100);
+
+      // B단계: 준비 완료 알림(접속 정보 전달)
+      ClientSocketMessageSender.broadcastDungeonReady(match, serverAddr, tokensByUser);
+
+      console.log(`[MQM] DungeonReady sent: ${match.matchId} -> ${serverAddr}`);
+    } catch (e: any) {
+      // 실패/타임아웃
+      ClientSocketMessageSender.broadcastMatchFailed(match, String(e?.message || e || "UNKNOWN"));
+      dm.endDungeonSession(dungeonId, "aborted");
+      console.warn(`[MQM] DS ready failed ${match.matchId}:`, e?.message || e);
+    } finally {
+      this.refreshActive(match.mapId);
+    }
+
+    
   }
 
   private refreshActive(mapId : MapId) {

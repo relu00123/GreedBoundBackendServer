@@ -1,5 +1,5 @@
 // Token
-export type DungeonToken = string;
+//export type DungeonToken = string;
 export type PlayerToken = string;
 
  

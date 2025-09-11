@@ -32,13 +32,13 @@ export function setupSocket(wss : WebSocketServer) {
                     GlobalJobQueue.execute(async () => {
 
                         // ws저장
-                        const success = DungeonManager.getInstance("SetupSocket").registerDedicatedSocket(token, ws);
+                        //const success = DungeonManager.getInstance().registerDedicatedSocket(token, ws);
 
-                        if (!success) {
-                            ws.send(JSON.stringify({ error : "Invalid or expired session"}));
-                            ws.close();
-                            return;
-                        }
+                        // if (!success) {
+                        //     ws.send(JSON.stringify({ error : "Invalid or expired session"}));
+                        //     ws.close();
+                        //     return;
+                        // }
 
                         // Dedicated ws에 MessageHandler등록 
                         setupDedicatedSocketMessageHandler(ws);

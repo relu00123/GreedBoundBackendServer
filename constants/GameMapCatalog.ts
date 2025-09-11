@@ -1,12 +1,15 @@
+import { MapId } from "../types/match";
+
 export type GameMapDef = {
   key: string;           // "GoblinCave" (인간 친화 키)
   displayName: string;   // UI용
   enabled?: boolean;     // 운영 중 임시 오프용(기본 true)
+  uePath : string;
 };
 
 export const GameMAPS: Record<number, GameMapDef> = {
-  1001: { key: "GoblinCave",      displayName: "Goblin Cave",      enabled: true },
-  1002: { key: "ForgottenCastle", displayName: "Forgotten Castle", enabled: true },
+  1001: { key: "GoblinCave",      displayName: "Goblin Cave",      enabled: true, uePath: "/Game/Maps/Dungeon/GoblinCave/GoblinCave" },
+  1002: { key: "ForgottenCastle", displayName: "Forgotten Castle", enabled: true, uePath: "/Game/Maps/Dungeon/ForgottenCastle/ForgottenCastle"},
 };
 
 // 파생 인덱스들 (편의)
@@ -31,3 +34,19 @@ export function extractGameMapNumericId(body: any): { ok:true; id:number } | { o
   }
   return { ok:false, error:"mapNumericId(number) or GameMapId(string) is required" };
 }
+
+export function getUEMapPath(mapId: MapId): string {
+  const def = GameMAPS[mapId as GameMapNumericId];
+  if (!def) {
+    throw new Error(`Unknown mapId ${mapId}. Add it to GameMAPS with a valid uePath.`);
+  }
+  if (def.enabled === false) {
+    throw new Error(`mapId ${mapId} (${def.key}) is disabled.`);
+  }
+  if (!def.uePath) {
+    throw new Error(`mapId ${mapId} (${def.key}) has no uePath.`);
+  }
+  return def.uePath;
+}
+
+ 

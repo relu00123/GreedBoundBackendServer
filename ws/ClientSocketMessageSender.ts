@@ -7,9 +7,11 @@ import { BroadcastSocketMessageUtils } from "../utils/BroadcastSocketMessageUtil
 import { PartyID } from "../types/party";
 import { PartyManager } from "../services/managers/PartyManager";
 import { SocketMessage } from "../types/common";
-import { Match, MapId } from "../types/match";
+import { Match, MapId, UserId } from "../types/match";
+import { PlayerJoinCredentials, JoinDungeonPayload, JoinCredentialsByUser, MatchFailedPayload } from "../types/network";
+import { DungeonId } from "../types/dungeon";
 
-// 필요하다면 type을 다른곳으로 빼기 (09.10 추가)
+
 export type MatchFoundMessage = {
   type: "MatchFound";
   payload: {
@@ -42,6 +44,25 @@ export class ClientSocketMessageSender {
         BroadcastSocketMessageUtils.broadcastToSpecificMembers(usernames, JSON.stringify(msg));
     }
 
+    /** 매치 준비 실패(또는 DS 레디 타임아웃) 시 전원에게 알림 */
+    static broadcastMatchFailed(match: Match, reason: string, code?: string) {
+        const users = this.usersFromMatch(match);
+        const payload: MatchFailedPayload = {
+        matchId: match.matchId,
+        mapId: match.mapId,
+        reason,
+        code: code ?? null,
+        };
+        this.sendToUsers(users, { type: "MatchFailed", payload });
+    }
+
+    // --- 내부 유틸: 매치의 모든 유저ID 수집(중복 제거) ---
+    private static usersFromMatch(match: Match): UserId[] {
+        const members = match.teams.flatMap(t => t.members);
+        return Array.from(new Set(members));
+    }
+
+
     static broadcastMatchAssigned(match: Match) {
         for (const team of match.teams) {
         for (const username of team.members) {
@@ -50,37 +71,32 @@ export class ClientSocketMessageSender {
             payload: {
                 matchId: match.matchId,
                 mapId: match.mapId,
-                teamId: team.teamId,
-                teamMembers: team.members,
+                //teamId: team.teamId,
+                //teamMembers: team.members,
             }
             });
         }
         }
     }
 
-    static broadcastDungeonReady(match: Match, serverAddr: string, tokensByUser: Record<string, string>) {
-        for (const team of match.teams) {
-        for (const username of team.members) {
-            this.sendToUser(username, {
-            type: "DungeonReady",
-            payload: {
-                matchId: match.matchId,
-                serverAddr,
-                token: tokensByUser[username] ?? null
-            }
-            });
-        }
-        }
-    }
-
-    static broadcastMatchFailed(match: Match, reason: string) {
-        for (const team of match.teams) {
-        for (const username of team.members) {
-            this.sendToUser(username, {
-            type: "MatchFailed",
-            payload: { matchId: match.matchId, reason }
-            });
-        }
+    public static broadcastJoinDungeon(
+    match: Match,
+    serverAddr: { host: string; port: number },
+    dungeonId: DungeonId,                             
+    joinCredsByUser: JoinCredentialsByUser
+    ) 
+    {
+        for (const [user, creds] of Object.entries(joinCredsByUser)) {
+        const payload: JoinDungeonPayload = {
+            host: serverAddr.host,
+            port: serverAddr.port,
+            dungeonId,                                    
+            matchId: match.matchId,
+            teamId: creds.teamId,
+            teamSize: creds.teamSize,
+            joinToken: creds.joinToken,
+        };
+        this.sendToUser(user, { type: "JoinDungeon", payload });
         }
     }
 
@@ -103,9 +119,7 @@ export class ClientSocketMessageSender {
         }
         }
     }
-    // 09.10 추가완 
-
-
+ 
 
     /**
      * @description 특정 파티원들에게만 메시지를 전송합니다.

@@ -6,6 +6,7 @@ import WebSocket from "ws";
 
 import authRoutes from "./routes/auth";
 import matchRoutes from "./routes/match";
+import dungeonRoutes from "./routes/dungeon";
 //import playerRoutes from "./routes/player";
 
 import { setupSocket } from "./ws/SetupSocket";
@@ -28,6 +29,7 @@ app.use(express.json());
 
 app.use("/", authRoutes);
 app.use("/match", matchRoutes);
+app.use("/dungeon", dungeonRoutes)
 //app.use("/players", playerRoutes);
 
 setupSocket(wss);

@@ -1,4 +1,5 @@
 import type { UserId, MapId, Team } from "./match";
+import { JoinCredentialsByUser } from "./network";
 
 export type DungeonId = string;
 export type DungeonStatus = "preparing" | "running" | "ended";
@@ -24,10 +25,9 @@ export interface DungeonSession {
   endedAt?: number;
   endReason?: "completed" | "aborted" | "timeout" | "crash";
 }
-
-// 매칭 발차 시 MQM에 반환할 최소 결과
+ 
 export interface DungeonStartResult {
   dungeonId: DungeonId;
-  serverAddr: string;
-  tokensByUser: Record<UserId, string>;
+  serverAddr: { host: string; port: number }; // ← 객체형
+  joinCredsByUser: JoinCredentialsByUser;     // ← tokensByUser 대체
 }

@@ -2,7 +2,6 @@ import express, { Request, Response } from "express";
 import { authenticateToken } from "../middleware/auth";
 import { getSession, Session } from "../services/managers/sessionStore";
 import { PlayerState } from "../constants/playerstate";
-import { addToMatchQueue } from "../services/managers/matchManager";
 import { PlayerManager } from "../services/managers/PlayerManager";
 import { GameMAPS, isAllowedGameMap, extractGameMapNumericId, MAP_ALIAS_TO_ID } from "../constants/GameMapCatalog";
 import { TeamJoinPolicy } from "../types/match";

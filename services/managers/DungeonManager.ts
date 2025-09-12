@@ -110,12 +110,11 @@ export class DungeonManager {
         if (child) {
             this.procs.set(session.dungeonId, child);
 
-            // (옵션) PID 기록해두고 싶으면 Store에 setter 추가해서 기록
+            // (옵션) PID 기록이 필요하면 사용
             // this.store.setSessionPid(session.dungeonId, child.pid);
 
             // 프로세스 종료 훅: 상태/포트 정리
-            child.on("exit", (code, signal) => {
-            // 러닝 중 종료되면 세션도 종료로 마킹
+            child.on("exit", (code) => {
             const s = this.store.getSessionByDungeonId(session.dungeonId);
             if (s && s.status !== "ended") {
                 this.store.endSession(session.dungeonId, code === 0 ? "completed" : "crash");
@@ -125,11 +124,12 @@ export class DungeonManager {
             });
         }
 
-        // 서버가 실제로 리슨을 시작했는지 TCP로 폴링
-        await this.waitUntilListening(session.serverHost!, session.serverPort!, 15_000, 100);
+        // ⛔ 기존: TCP로 포트 리슨 대기 (UE는 UDP → 항상 실패 가능) 제거
+        // await this.waitUntilListening(...);
 
-        // 준비 완료 → running 마킹 (MQM.whenReady()가 여기서 풀림)
-        this.store.setSessionStatus(session.dungeonId, "running");
+        // ⛔ 기존: 여기서 running 마킹 제거
+        // 준비 완료 마킹은 /dungeonReady 라우터에서만 수행:
+        // store.setSessionStatus(dungeonId, "running");
     }
 
     private mapPathFromId(mapId: MapId): string {
@@ -152,7 +152,8 @@ export class DungeonManager {
         const readySecret = process.env.DS_READY_SECRET || "";
 
         // spawn의 args는 배열이라 경로에 공백이 있어도 따옴표가 필요 없습니다.
-        const uproject = "C:\\Users\\Relu\\Desktop\\GreedboundSVN\\Greedbound\\Greedbound.uproject";
+        //const uproject = "C:\\Users\\Relu\\Desktop\\GreedboundSVN\\Greedbound\\Greedbound.uproject";
+        const uproject = "C:\\Users\\relu0\\Desktop\\GreedboundSVN\\Greedbound\\Greedbound.uproject";
         const mapPath  = this.mapPathFromId(session.mapId);
 
         const args = [
@@ -163,7 +164,10 @@ export class DungeonManager {
             `-dungeonid=${session.dungeonId}`,
             `-matchid=${session.matchId}`,
             `-readyUrl=${readyUrl}`,
+            `-host=${session.serverHost || "127.0.0.1"}`, 
         ];
+
+        console.log("[DM] spawn:", cmd, args.join(" "));
 
         if (readySecret) args.push(`-readySecret=${readySecret}`);
 
@@ -278,6 +282,8 @@ export class DungeonManager {
         return this.store.verifyUserToken(dungeonId, userId, token, { consume });
     }
 
+    
+
     // Dungeon Instance의 준비완료를 기다린다. 
     // dungeon Instance의 상태 변경을 감지해서 promise resolve -> MQM (MatchQueueManager)가 그 시점에
     // DungeonReady 메세지를 소캣으로 전송한다.
@@ -292,4 +298,6 @@ export class DungeonManager {
             await new Promise(r => setTimeout(r, pollMs));
         }
     }
+
+    
 }

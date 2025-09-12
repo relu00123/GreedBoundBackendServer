@@ -35,31 +35,31 @@ export class MatchQueueManager {
     // A단계: 매치 배정(서버 준비 전)
     ClientSocketMessageSender.broadcastMatchAssigned(match);
 
-    // startMatch가 { dungeonId, serverAddr: {host, port}, joinCredsByUser }를 반환하도록 이미 바꿨죠.
     const { dungeonId, serverAddr, joinCredsByUser } = dm.startMatch(match);
 
     try {
-      // DS가 포트를 리슨하면 ready 콜백(or 폴링) 성공
-      await dm.whenReady(dungeonId, 15_000, 100);
+      // DS 준비 완료까지 대기 → 최신 세션 반환
+      const s = await dm.whenReady(dungeonId, 15_000, 100);
 
-      // B단계: 준비 완료 알림(유저별 접속 정보 전송)
+      // /dungeonReady 로 갱신됐을 수 있는 주소를 우선 사용
+      const host = s.serverHost ?? serverAddr.host;
+      const port = s.serverPort ?? serverAddr.port;
+
+      // B단계: 클라들에게 접속 정보 전송
       ClientSocketMessageSender.broadcastJoinDungeon(
         match,
-        serverAddr,      // { host, port }
-        dungeonId,       // DungeonId (별도 인자로 전달)
-        joinCredsByUser  // Record<UserId, PlayerJoinCredentials>
+        { host, port },
+        dungeonId,
+        joinCredsByUser
       );
 
-      const addr = `${serverAddr.host}:${serverAddr.port}`;
-      console.log(`[MQM] DungeonReady sent: ${match.matchId} -> ${addr}`);
+      console.log(`[MQM] JoinDungeon sent: ${match.matchId} -> ${host}:${port}`);
     } catch (e: any) {
-      // 실패/타임아웃
       ClientSocketMessageSender.broadcastMatchFailed(
         match,
         String(e?.message || e || "UNKNOWN")
       );
       dm.endDungeonSession(dungeonId, "aborted");
-
       console.warn(`[MQM] DS ready failed ${match.matchId}: ${e?.message || e}`);
     } finally {
       this.refreshActive(match.mapId);

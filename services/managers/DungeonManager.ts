@@ -152,8 +152,8 @@ export class DungeonManager {
         const readySecret = process.env.DS_READY_SECRET || "";
 
         // spawn의 args는 배열이라 경로에 공백이 있어도 따옴표가 필요 없습니다.
-        //const uproject = "C:\\Users\\Relu\\Desktop\\GreedboundSVN\\Greedbound\\Greedbound.uproject";
-        const uproject = "C:\\Users\\relu0\\Desktop\\GreedboundSVN\\Greedbound\\Greedbound.uproject";
+        const uproject = "C:\\Users\\Relu\\Desktop\\GreedboundSVN\\Greedbound\\Greedbound.uproject";
+        //const uproject = "C:\\Users\\relu0\\Desktop\\GreedboundSVN\\Greedbound\\Greedbound.uproject";
         const mapPath  = this.mapPathFromId(session.mapId);
 
         const args = [

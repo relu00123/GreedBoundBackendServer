@@ -7,8 +7,9 @@ export type GameMapDef = {
   uePath : string;
 };
 
+
 export const GameMAPS: Record<number, GameMapDef> = {
-  1001: { key: "GoblinCave",      displayName: "Goblin Cave",      enabled: true, uePath: "/Game/GB/Maps/Relu/GoblinCave" },
+  1001: { key: "GoblinCave",      displayName: "Goblin Cave",      enabled: true, uePath: "/Game/GB/Maps/Relu/Dungeon/NetTestDungeon" },
   1002: { key: "ForgottenCastle", displayName: "Forgotten Castle", enabled: true, uePath: "/Game/Maps/Dungeon/ForgottenCastle/ForgottenCastle"},
 };
 

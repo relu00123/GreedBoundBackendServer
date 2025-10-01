@@ -17,6 +17,8 @@ import { PlayerManager } from "./services/managers/PlayerManager";
 import { PartyManager } from "./services/managers/PartyManager";
 import { DungeonManager } from "./services/managers/DungeonManager";
 
+import { startDebugConsole } from "./debug/debugConsole";
+
 dotenv.config();
 
 const app = express();
@@ -76,6 +78,9 @@ async function startServer() {
     // 매칭 시스템 초기화
     initializeMatchQueue();
     setupGracefulShutdown();
+
+    // Server용 Debug Console 실행
+    startDebugConsole(4000);
 
     server.listen(PORT, () => {
       console.log(`🚀 Game Backend Server is running on http://localhost:${PORT}`);

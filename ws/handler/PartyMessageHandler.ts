@@ -121,13 +121,9 @@ export class PartyMessageHandler {
             PartyNotificationService.notifyMemberJoined(newPartyID, inviteePlayer.username, inviteePlayer.username);
 
             // 새로 파티에 들어온 멤버에게는 파티 정보를 보냅니다. 
-            PartyNotificationService.sendPartyInfo(ws, newPartyID);
-
-            // 초대 수락 응답을 초대 수락한 클라이언트에게 보냅니다. (굳이?)
-            //PartyNotificationService.sendAcceptPartyInviteResponse(ws, { success: true, partyId: newPartyID, hostName: inviterPlayer.username });
+            PartyNotificationService.sendPartyJoined(ws, newPartyID);
 
             return;
-
         } 
         
         // inviter가 현재 파티 상태에 없는 경우
@@ -153,13 +149,13 @@ export class PartyMessageHandler {
 
             // 새로 생성된 파티 정보를 모든 파티원에게 보냅니다.
             // invitee
-            PartyNotificationService.sendPartyInfo(ws, newPartyID);
+            PartyNotificationService.sendPartyJoined(ws, newPartyID);
             
             // inviter
             const invitersession = PlayerManager.getInstance("PartyMessageHandler").getPlayerSessionByUserName(inviterPlayer.username);
             if (invitersession?.ws)
             {
-                PartyNotificationService.sendPartyInfo(invitersession.ws, newPartyID);
+                PartyNotificationService.sendPartyJoined(invitersession.ws, newPartyID);
             }
 
             // 초대를 보낸 클라이언트에게도 파티가 생성되었음을 알립니다. (굳이.. 필요없을 것 같은데)

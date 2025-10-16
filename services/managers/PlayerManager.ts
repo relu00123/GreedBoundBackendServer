@@ -129,6 +129,11 @@ export class PlayerManager {
         this.updatePlayerSession(playerSession?.username, {gamePhase: TargetGamePhase});
 
         // 3. 모든 클라이언트들에게 BroadCast
+        // - 이 부분이 비효율적인것은 인지 하고 있음.
+        // - 예를들어서 던전에 있는 사람이 로비에 있는 특정인원이 offline으로 변경된 것 까지는 알필요가 없다.
+        // - 닼닼이라면 게임이 끝나고 로비 복귀시에 서버에 있는 인원 (ex : 10000명) 중 일부 (ex : 1000) 명의 정보를 받아서
+        // - 로비에 알려서 UI반영 및 초대등의 기능이 가능하도록 할 것 같다. 
+        // - 하지만 연습 프로젝트이기에 Client에 Server의 UserState와 동기화를 하는 단순화된 방식으로 구현하겠음. 
         const snapshot = this.getPlayerSessionByUserName(playerSession.username);
 
         if (snapshot) {

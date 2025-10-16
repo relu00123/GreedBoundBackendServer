@@ -14,6 +14,8 @@ import { SentRequestRow } from "../services/stores/FriendshipStore";
 import { PlayerSessionPatch } from "../types/player";
 import { PartyMessageHandler } from "./handler/PartyMessageHandler";
 import { GamePhaseMessageHandler } from "./handler/GamePhaseMessageHandler";
+import { MatchQueueManager } from "../services/managers/MatchQueueManager";
+import { MatchQueueMessageHandler } from "./handler/MatchQueueMessageHandler";
 
 
 export function setupClientSocketMessageHandler(ws: WebSocket) {
@@ -324,6 +326,12 @@ export function setupClientSocketMessageHandler(ws: WebSocket) {
           case "GamePhaseChangeRequest" : 
           {
             GamePhaseMessageHandler.handleGamePhaseChangeRequest(ws, msg);
+            break;
+          }
+
+          case "MatchStartRequest" : 
+          {
+            MatchQueueMessageHandler.handleMatchStartRequest(ws, msg);
             break;
           }
         

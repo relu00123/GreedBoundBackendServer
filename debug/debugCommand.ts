@@ -5,6 +5,7 @@ import { ClientDebugHandlers } from "./handlers/ClientDebugHandlers";
 export const DebugCommands : Record<string, (socket: net.Socket) => void>  = {
 
     ...ClientDebugHandlers,
+    
     help: (socket) => {
         const commands = Object.keys(DebugCommands);
 

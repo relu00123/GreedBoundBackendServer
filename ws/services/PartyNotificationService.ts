@@ -40,6 +40,12 @@ export interface PartyInfoNotificationPayload {
     members: PartyMember[];
 }
 
+export interface PartyJoinedPayload {
+    partyId : PartyID;
+    hostName : string;
+    members : PartyMember[];
+}
+
 
 export class PartyNotificationService {
 
@@ -208,6 +214,38 @@ export class PartyNotificationService {
             payload: partyInfoPayload
         });
     }
+
+    /** 
+     * @description 파티 가입 사실 및 가입한 파티 정보를 보냅니다.
+     * @param newMemberWs 새로 추가된 멤버의 웹소캣 인스턴스
+     * @param partyID 파티 ID
+    */
+   public static sendPartyJoined(newMemberWs: WebSocket, partyID: PartyID) : void {
+    const party = PartyManager.getInstance().getParty(partyID);
+        if (!party) {
+            console.error(`Party with ID ${partyID} not found.`);
+            return;
+        }
+
+        const partyJoinedPayload: PartyJoinedPayload = {
+            partyId: party.partyId,
+            hostName: party.hostName,
+            members: party.members
+        };
+
+        // 멤버 배열의 내용을 콘솔에 출력
+        console.log("Party Members to be sent:", partyJoinedPayload.members);
+
+
+        ClientSocketMessageSender.sendToSocket(newMemberWs, {
+            type: "PartyJoinedByMe",
+            payload: partyJoinedPayload
+        });
+
+   }
+     
+
+
     
 
     /**

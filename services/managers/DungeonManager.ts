@@ -288,7 +288,7 @@ export class DungeonManager {
     // dungeon Instance의 상태 변경을 감지해서 promise resolve -> MQM (MatchQueueManager)가 그 시점에
     // DungeonReady 메세지를 소캣으로 전송한다.
     // 이때 서버주소, 서버에 입장하기위한 Unique 한 토큰들이 포함된다. 
-    async whenReady(dungeonId: DungeonId, timeoutMs = 15000, pollMs = 100): Promise<DungeonSession> {
+    async whenReady(dungeonId: DungeonId, timeoutMs = 100000, pollMs = 100): Promise<DungeonSession> {
         const t0 = Date.now();
         for (;;) {
             const s = this.store.getSessionByDungeonId(dungeonId);

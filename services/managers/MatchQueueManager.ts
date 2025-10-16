@@ -7,6 +7,11 @@ import { TeamJoinPolicy, MapId, Match, UserId, TicketId } from "../../types/matc
 import { PartyManager } from "./PartyManager";
 import { DungeonManager } from "./DungeonManager";
 import { ClientSocketMessageSender } from "../../ws/ClientSocketMessageSender";
+import { SocketMessage } from "../../types/common";
+
+import { WebSocket } from "ws";
+import { PlayerManager } from "./PlayerManager";
+import { GameMAPS, isAllowedGameMap } from "../../constants/GameMapCatalog";
 
 type AgingPolicy = { maxWaitMs: number; minTeamsToLaunch: number };
 
@@ -39,7 +44,7 @@ export class MatchQueueManager {
 
     try {
       // DS 준비 완료까지 대기 → 최신 세션 반환
-      const s = await dm.whenReady(dungeonId, 15_000, 100);
+      const s = await dm.whenReady(dungeonId, 150_000, 100);
 
       // /dungeonReady 로 갱신됐을 수 있는 주소를 우선 사용
       const host = s.serverHost ?? serverAddr.host;
@@ -72,6 +77,55 @@ export class MatchQueueManager {
     else this.activeMaps.delete(mapId);
   }
 
+  public handleMatchStartRequest(ws : WebSocket, MapNumericID :MapId) {
+     // HTTP에서 하고 있는 내용을 여기로 가져올 것이다. 
+
+     const session = PlayerManager.getInstance("MatchQueueManager").getPlayerSessionBySocket(ws);
+
+     if (!session)
+     {
+        console.warn(`[MatchQueueManager.ts/handleMatchStartRequest] PlayerSession Not Found `);
+        return;
+     }
+
+     if (!isAllowedGameMap(MapNumericID))
+     {
+        console.warn('[MatchQueueManager.ts/handleMatchStartRequest] Invalid Map ID');
+        return;
+     }
+
+     const MapDefinition = GameMAPS[MapNumericID];
+     if (MapDefinition.enabled === false)
+     {
+      console.warn('[MatchQueueManager.ts/handleMatchStartRequest] Diabled Map'); 
+     }
+
+     const partyId = session.party_id ?? null;
+     const username = session.username;
+     const teampolicy = TeamJoinPolicy.Closed; // 임시 
+
+     if (partyId)
+     {
+        // 파티 큐 (파티장만 허용)
+        const {ticketId, members} = this.joinQueueParty(partyId, MapNumericID, teampolicy, username);
+
+        // Client들에게 필요한 정보 보내줘야 한다. 
+     }
+
+     else
+     {
+        // 솔로 큐 
+        const {ticketId } = this.joinQueueSolo(username, MapNumericID, teampolicy);
+
+        // Client에게 필요한 정보를 보내줘야 한다. 
+     }
+
+
+
+  }
+   
+
+ 
   // 솔로 큐 진입
   public joinQueueSolo(username : UserId, mapId : MapId, policy : TeamJoinPolicy) {
     const ticketId = this.store.enqueueSolo(mapId, username, policy);

@@ -12,6 +12,8 @@ import { SocketMessage } from "../../types/common";
 import { WebSocket } from "ws";
 import { PlayerManager } from "./PlayerManager";
 import { GameMAPS, isAllowedGameMap } from "../../constants/GameMapCatalog";
+import { ClientGamePhase } from "../../constants/ClientGamePhase";
+import { MatchQueueNotificationService } from "../../ws/services/MatchQueueNotificationService";
 
 type AgingPolicy = { maxWaitMs: number; minTeamsToLaunch: number };
 
@@ -40,6 +42,25 @@ export class MatchQueueManager {
     // A단계: 매치 배정(서버 준비 전)
     ClientSocketMessageSender.broadcastMatchAssigned(match);
 
+    for (const team of match.teams) {
+      
+      console.log(`[onMatchLaunched] Team ${team.teamId}: members = ${team.members.join(", ")}`);
+
+      for (const username of team.members) {
+         console.log(`  -> Processing member: ${username}`);
+
+        const memberSession = PlayerManager.getInstance("MatchQueueManager").getPlayerSessionByUserName(username);
+
+        if (memberSession?.ws) {
+          console.log(`     ✅ Session found for ${username}, updating phase -> MatchAssigned`);
+          PlayerManager.getInstance("MatchQueueManager").changeClientGamePhase(memberSession?.ws, ClientGamePhase.MatchAssigned);
+        } else {
+          console.warn(`     ⚠️ No active session for username=${username}`);
+        }
+      }
+    }
+
+  
     const { dungeonId, serverAddr, joinCredsByUser } = dm.startMatch(match);
 
     try {
@@ -77,13 +98,55 @@ export class MatchQueueManager {
     else this.activeMaps.delete(mapId);
   }
 
+  public handleMatchCancelRequest(ws : WebSocket, MapNumericID : MapId) {
+
+    const session = PlayerManager.getInstance("MatchQueueManager").getPlayerSessionBySocket(ws);
+
+    if (!session) {
+       console.warn(`[MatchQueueManager.ts/handleMatchCancelRequest] PlayerSession Not Found `);
+        return;
+    }
+
+    // 이미 MatchAssigned라면 취소를 해줄 수 없음.
+    if (session.gamePhase == ClientGamePhase.MatchAssigned || session.gamePhase == ClientGamePhase.JoiningDungeon)
+      return;
+
+    const partyId = session.party_id ?? null;
+
+    if (partyId) {
+
+      // 모든 파티원의 매치 큐 -> 취소해 줘야 한다. 
+      // MapID랑 PartyID 보내줘야 한다. 
+      this.cancelParty(MapNumericID, partyId);
+
+      // 파티에 있는 모든 클라이언트들의 GamePhase 변경
+      const PartyMembers = PartyManager.getInstance().getPartyMemberUsernames(partyId);
+
+      for (const memberName of PartyMembers) {
+        const memberSession = PlayerManager.getInstance("MatchQueueManager").getPlayerSessionByUserName(memberName);
+        if (memberSession?.ws)  {
+            PlayerManager.getInstance("MatchQueueManager").changeClientGamePhase(memberSession?.ws, ClientGamePhase.Lobby);
+        }
+        // MatchQueue 탈출 패킷. 
+        MatchQueueNotificationService.notifyMatchQueueCanceled(true, MapNumericID, partyId);
+      }
+    }
+
+    else {
+      // 솔로 큐
+      this.cancelSolo(MapNumericID, session.username);
+
+      PlayerManager.getInstance("MatchQueueManager").changeClientGamePhase(ws, ClientGamePhase.Lobby);
+      MatchQueueNotificationService.notifyMatchQueueCanceled(false, MapNumericID, session.username);
+    }
+  }
+
   public handleMatchStartRequest(ws : WebSocket, MapNumericID :MapId) {
      // HTTP에서 하고 있는 내용을 여기로 가져올 것이다. 
 
      const session = PlayerManager.getInstance("MatchQueueManager").getPlayerSessionBySocket(ws);
 
-     if (!session)
-     {
+     if (!session)  {
         console.warn(`[MatchQueueManager.ts/handleMatchStartRequest] PlayerSession Not Found `);
         return;
      }
@@ -107,50 +170,74 @@ export class MatchQueueManager {
      if (partyId)
      {
         // 파티 큐 (파티장만 허용)
-        const {ticketId, members} = this.joinQueueParty(partyId, MapNumericID, teampolicy, username);
+        const {ticketID, isLaunched} = this.joinQueueParty(partyId, MapNumericID, teampolicy, username);
 
-        // Client들에게 필요한 정보 보내줘야 한다. 
+        // 파티에 있는 모든 클라이언트들의 GamePhase변경 
+        const PartyMembers = PartyManager.getInstance().getPartyMemberUsernames(partyId);
+
+        if (!isLaunched) {
+          for (const memberName of PartyMembers) {
+            const memberSession =  PlayerManager.getInstance("MatchQueueManager").getPlayerSessionByUserName(memberName);
+            if (memberSession?.ws)
+              PlayerManager.getInstance("MatchQueueManager").changeClientGamePhase(memberSession?.ws, ClientGamePhase.InMatchingQueue);
+          }
+        }
+ 
+        // 2. MatchQueue 진입 패킷. 이미 Json 으로 QueueJoined 와 Queue Canceled라는 패킷을 만들어 둔 것이 있다. 
+        // 이를 통해서 버튼이 Pending -> Match를 취소할 수 있도록 (파티장인 경우만), 그리고 파티원인경우에는 매치에 들어갔다는 것만
+        // 알릴 수 있도록 한다. 
+        MatchQueueNotificationService.notifyMatchQueueJoined(true, MapNumericID, partyId, teampolicy, ticketID);
      }
 
      else
      {
         // 솔로 큐 
-        const {ticketId } = this.joinQueueSolo(username, MapNumericID, teampolicy);
+        const {ticketID, isLaunched } = this.joinQueueSolo(username, MapNumericID, teampolicy);
 
         // Client에게 필요한 정보를 보내줘야 한다. 
+
+        // 0. 큐에 들어온 사람에게 큐에 들어왔음을 알려야 한다. 
+        // Client에서는 이 패킷을 보고 CurrentQueueState를 채운다. 
+        MatchQueueNotificationService.notifyMatchQueueJoined(false, MapNumericID, username, teampolicy, ticketID);
+
+        // 1. Client의 GamePhase변경 Lobby -> Matching Queue
+        // 2. 그런데 이미 MatchAssigned로 변경되어 있을 수 있음. 그런 경우에는 보내면 안된다. 
+        if (!isLaunched) {
+          PlayerManager.getInstance("MatchQueueManager").changeClientGamePhase(ws, ClientGamePhase.InMatchingQueue);
+        }
      }
+  }
 
-
-
+  public getSnapshot() {
+    return this.store.getSnapshot();
   }
    
-
  
   // 솔로 큐 진입
-  public joinQueueSolo(username : UserId, mapId : MapId, policy : TeamJoinPolicy) {
-    const ticketId = this.store.enqueueSolo(mapId, username, policy);
+  public joinQueueSolo(username : UserId, mapId : MapId, policy : TeamJoinPolicy) 
+  :  { ticketID : TicketId , isLaunched : boolean}
+  {
+    const {ticketID , isLaunched} = this.store.enqueueSolo(mapId, username, policy);
     this.refreshActive(mapId);
-
-    // 솔로큐에 입장한 인원에게 큐에 입장했음을 알려야함. 
-    ClientSocketMessageSender.sendToUser(username,  {type : "QueueJoined", payload: {mapId, policy, ticketId}});
-    return {ticketId};
+    return {ticketID, isLaunched};
   }
 
   // 파티 큐 진입
   public joinQueueParty(partyId: number, mapId: MapId, policy: TeamJoinPolicy, requestedBy?: UserId) 
+    : {ticketID : TicketId, members : string[], isLaunched : boolean}
   { 
     if (requestedBy && !PartyManager.getInstance().isHost(partyId, requestedBy)) {
      throw new Error("ONLY_HOST_CAN_QUEUE");
     }
   
     const members = PartyManager.getInstance().getPartyMemberUsernames(partyId); // ✅ 서버에서 조회
-    const ticketId = this.store.enqueueParty(mapId, partyId, members, policy);
+    const {ticketID, isLaunched} = this.store.enqueueParty(mapId, partyId, members, policy);
     this.refreshActive(mapId);
 
-    // 파티큐로 입장한 파티원들에게 큐에 입장했음을 알려야함. 
-    ClientSocketMessageSender.sendToUsers(members, { type: "QueueJoined", payload: { mapId, policy, ticketId, partyId } });
+    // 파티큐로 입장한 파티원들에게 큐에 입장했음을 알려야함. (중복 처리되고 있는 것 같아서 일단 주석 처리 해두었음. )
+    //ClientSocketMessageSender.sendToUsers(members, { type: "QueueJoined", payload: { mapId, policy, ticketId, partyId } });
 
-    return { ticketId, members };
+    return { ticketID, members, isLaunched };
   }
 
   // 솔로 큐 취소

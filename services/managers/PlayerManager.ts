@@ -6,6 +6,7 @@ import { WebSocket as WSWebSocket } from "ws";
 import { PartyManager } from "./PartyManager";
 import { ClientGamePhase } from "../../constants/ClientGamePhase";
 import { ClientSocketMessageSender } from "../../ws/ClientSocketMessageSender";
+import { PlayerNotificationService } from "../../ws/services/PlayerNotificationService";
 
 export class PlayerManager {
     private static _instance : PlayerManager | null = null;
@@ -116,8 +117,7 @@ export class PlayerManager {
         return { ok :true};
     }
 
-    public handleGamePhaseChangeRequset(RequestSocket : WSWebSocket , TargetGamePhase : ClientGamePhase) {
-        
+    public changeClientGamePhase(RequestSocket : WSWebSocket, TargetGamePhase : ClientGamePhase) {
         // 1. 소캣으로부터 플레이어 세션 찾기
         const playerSession = this.getPlayerSessionBySocket(RequestSocket);
         if (!playerSession) {
@@ -125,8 +125,19 @@ export class PlayerManager {
             return;
         }
 
+        const previousGamePhase = playerSession.gamePhase;
+
         // 2. 해당 플레이어 세션의 GamePhase 업데이트
         this.updatePlayerSession(playerSession?.username, {gamePhase: TargetGamePhase});
+
+        const snapshot = this.getPlayerSessionByUserName(playerSession.username);
+
+        if (snapshot) {
+            PlayerNotificationService.notifyGamePhaseChanged(playerSession.username, previousGamePhase, TargetGamePhase, snapshot);
+        }
+
+        // Legacy Logic Starts
+        // 2.1 (자기 자신에게의 GamePhase는 전용 패킷을 통해서 알리도록 한다.)
 
         // 3. 모든 클라이언트들에게 BroadCast
         // - 이 부분이 비효율적인것은 인지 하고 있음.
@@ -134,11 +145,18 @@ export class PlayerManager {
         // - 닼닼이라면 게임이 끝나고 로비 복귀시에 서버에 있는 인원 (ex : 10000명) 중 일부 (ex : 1000) 명의 정보를 받아서
         // - 로비에 알려서 UI반영 및 초대등의 기능이 가능하도록 할 것 같다. 
         // - 하지만 연습 프로젝트이기에 Client에 Server의 UserState와 동기화를 하는 단순화된 방식으로 구현하겠음. 
-        const snapshot = this.getPlayerSessionByUserName(playerSession.username);
+        // const snapshot = this.getPlayerSessionByUserName(playerSession.username);
 
-        if (snapshot) {
-            ClientSocketMessageSender.broadcastPlayerSessionUpdatedToAll(snapshot, { gamePhase : TargetGamePhase});
-        }
+        // if (snapshot) {
+        //     console.log(`broadcasting Player Session Updates!!!! [phase] ${playerSession.username} : ${previousGamePhase} -> ${TargetGamePhase}`);
+        //     ClientSocketMessageSender.broadcastPlayerSessionUpdatedToAll(snapshot, { gamePhase : TargetGamePhase});
+        // }
+        // Legacy Logic Ends
+    }
+
+    public handleGamePhaseChangeRequset(RequestSocket : WSWebSocket , TargetGamePhase : ClientGamePhase) {
+        
+         this.changeClientGamePhase(RequestSocket, TargetGamePhase);
     }
 
     public handleLobbyUserListRequest(RequestSocket : WSWebSocket) {

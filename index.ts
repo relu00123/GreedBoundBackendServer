@@ -18,6 +18,7 @@ import { PartyManager } from "./services/managers/PartyManager";
 import { DungeonManager } from "./services/managers/DungeonManager";
 
 import { startDebugConsole } from "./debug/debugConsole";
+import { TEAMS_PER_MATCH_MAX } from "./types/match";
 
 dotenv.config();
 
@@ -46,7 +47,7 @@ function initializeMatchQueue() {
     // .attachPartyManager(PartyManager.getInstance())
     // .attachDungeonManager(DungeonManager.getInstance())
     // 에이징이 필요 없다면 configureAging 호출을 빼도 됩니다
-    .configureAging({ maxWaitMs: 30_000, minTeamsToLaunch: 2 });
+    .configureAging({ maxWaitMs: 30_000, minTeamsToLaunch: TEAMS_PER_MATCH_MAX });
 
   // 1초 간격으로 에이징 틱
   agingTimer = setInterval(() => mqm.tickAging(), 1_000);

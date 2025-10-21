@@ -25,11 +25,69 @@ interface MapState {
   currentMatch: { teams: Team[]; createdAt: number } | null;    // 지금 채우는 중인 매치(팀 모아 놓는 바구니). 꽉 차면 발차 
 }
 
+export type MapStateSnapshot = {
+  partialTeams: Array<{
+    teamId: string;
+    members: UserId[];
+    sourceTickets: TicketId[];
+    remaining: number;
+    createdAt: number;
+  }>;
+  readyTeams: Array<{
+    teamId: string;
+    members: UserId[];
+    sourceTickets: TicketId[];
+    createdAt: number;
+  }>;
+  currentMatch: {
+    teams: Array<{
+      teamId: string;
+      members: UserId[];
+      sourceTickets: TicketId[];
+    }>;
+    createdAt: number;
+  } | null;
+};
+
+
 export class MatchQueueStore {
   private static _inst: MatchQueueStore | null = null;
   static getInstance() {
     if (!this._inst) this._inst = new MatchQueueStore();
     return this._inst;
+  }
+
+  /** 읽기 전용 스냅샷 (깊은 복사) */
+  public getSnapshot(): Record<MapId, MapStateSnapshot> {
+    const out: Record<MapId, MapStateSnapshot> = {};
+    for (const [mapId, state] of this.maps.entries()) {
+      out[mapId] = {
+        partialTeams: state.partialTeams.map(p => ({
+          teamId: p.teamId,
+          members: [...p.members],
+          sourceTickets: [...p.sourceTickets],
+          remaining: p.remaining,
+          createdAt: p.createdAt,
+        })),
+        readyTeams: state.readyTeams.map(t => ({
+          teamId: t.teamId,
+          members: [...t.members],
+          sourceTickets: [...t.sourceTickets],
+          createdAt: t.createdAt,
+        })),
+        currentMatch: state.currentMatch
+          ? {
+              teams: state.currentMatch.teams.map(t => ({
+                teamId: t.teamId,
+                members: [...t.members],
+                sourceTickets: [...t.sourceTickets],
+              })),
+              createdAt: state.currentMatch.createdAt,
+            }
+          : null,
+      };
+    }
+    return out;
   }
 
   // 맵(던전)별로 독립된 큐/상태를 가진다.
@@ -66,7 +124,7 @@ export class MatchQueueStore {
   // Closed : 즉시 완성팀으로 반환 후 readyTeams에 push
   // Open : mergeIntoPartial로 보내 부분 팀에 합류(또는 새 partial 생성)
   // 즉시 조립 : tryAssembleMatch 호출로 readyTeams에 팀이 있다면 바로 currentMatch에 흡수해 발차까지 시도. 
-  enqueueSolo(mapId: MapId, username: UserId, policy: TeamJoinPolicy): TicketId {
+  enqueueSolo(mapId: MapId, username: UserId, policy: TeamJoinPolicy): { ticketID :TicketId , isLaunched : boolean } {
     if (!isAllowedGameMap(mapId)) throw new Error(`Invalid mapId ${mapId}`);
 
     // 중복 큐잉 방지(같은 맵의 같은 유저 SoloTicket 모두 취소)
@@ -80,13 +138,14 @@ export class MatchQueueStore {
     } else {
       this.mergeIntoPartial(mapId, [t]);
     }
-    this.tryAssembleMatch(mapId);
-    return t.ticketId;
+    
+    const {matches, isLaunched} = this.tryAssembleMatch(mapId);
+    return { ticketID : t.ticketId, isLaunched};
   }
 
   // enqueueSolo와 같지만, 파티 멤버 스냅샷을 가진 PartyTicket을 만든다.
   // Closed이면 바로 readyTeams, Open이면 mergeIntoPartial.
-  enqueueParty(mapId: MapId, partyId: number, members: UserId[], policy: TeamJoinPolicy): TicketId {
+  enqueueParty(mapId: MapId, partyId: number, members: UserId[], policy: TeamJoinPolicy): { ticketID :TicketId , isLaunched : boolean } {
     if (!isAllowedGameMap(mapId)) throw new Error(`Invalid mapId ${mapId}`);
     if (members.length > TEAM_MAX) throw new Error(`Party size ${members.length} > TEAM_MAX(${TEAM_MAX})`);
 
@@ -101,8 +160,9 @@ export class MatchQueueStore {
     } else {
       this.mergeIntoPartial(mapId, [t]);
     }
-    this.tryAssembleMatch(mapId);
-    return t.ticketId;
+
+    const {matches, isLaunched} = this.tryAssembleMatch(mapId);
+    return { ticketID : t.ticketId, isLaunched};
   }
 
   // ========== 내부: Partial → Ready → Match ==========
@@ -166,9 +226,9 @@ export class MatchQueueStore {
 
   // readyTeams에 팀이 생긴 순간, 현재 채우는 매치(currentMatch)에 가능한 만큼 즉시 채워 넣고,
   // 가득 차면 곧바로 매치 발차 
-  private tryAssembleMatch(mapId: MapId): Match[] {
+  private tryAssembleMatch(mapId: MapId): {matches : Match[], isLaunched : boolean} {
     const s = this.state(mapId);
-    const launched: Match[] = [];
+    const matches: Match[] = [];
 
     if (!s.currentMatch) {
       s.currentMatch = { teams: [], createdAt: Date.now() };
@@ -189,10 +249,12 @@ export class MatchQueueStore {
       this.cleanupAfterLaunch(mapId, match);
       if (this.onLaunch) this.onLaunch(match);
 
-      launched.push(match);
+      matches.push(match);
     }
 
-    return launched;
+    const isLaunched = matches.length > 0;
+
+    return {matches, isLaunched};
   }
 
     // 발차 후 티켓 정리 + 맵 GC
@@ -411,9 +473,11 @@ export class MatchQueueStore {
     if (!t) return null;
     this.cancelTicket(mapId, ticketId);
     if (t.kind === "solo") {
-      return this.enqueueSolo(mapId, t.userId, newPolicy);
+      const {ticketID} =  this.enqueueSolo(mapId, t.userId, newPolicy);
+      return ticketID;
     } else {
-      return this.enqueueParty(mapId, t.partyId, t.members, newPolicy);
+      const {ticketID} =  this.enqueueParty(mapId, t.partyId, t.members, newPolicy);
+      return ticketID;
     }
   }
 

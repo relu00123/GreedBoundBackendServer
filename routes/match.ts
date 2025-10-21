@@ -6,6 +6,7 @@ import { PlayerManager } from "../services/managers/PlayerManager";
 import { GameMAPS, isAllowedGameMap, extractGameMapNumericId, MAP_ALIAS_TO_ID } from "../constants/GameMapCatalog";
 import { TeamJoinPolicy } from "../types/match";
 import { MatchQueueManager } from "../services/managers/MatchQueueManager";
+import { MatchQueueNotificationService } from "../ws/services/MatchQueueNotificationService";
 
 const router = express.Router();
 
@@ -60,16 +61,16 @@ const logPrefix = "🎯 [MATCH/START]";
     if (partyId) {
       // 파티 큐 (파티장만 허용)
       try {
-        const { ticketId, members } = mqm.joinQueueParty(partyId, mapId, policy, username);
+        const { ticketID, members } = mqm.joinQueueParty(partyId, mapId, policy, username);
         console.log(
           `${logPrefix} ENQUEUE PARTY#${partyId} by=${username} members=[${members.join(", ")}] ` +
-          `mapId=${mapId}(${def.key}) policy=${policy} ticket=${ticketId}`
+          `mapId=${mapId}(${def.key}) policy=${policy} ticket=${ticketID}`
         );
         // HTTP는 얇은 ACK만 (실제 UI 갱신은 WS QueueJoined로 처리)
         return res.status(202).json({
           success: true,
           mode: "party",
-          ticketId,
+          ticketID,
           message: "queued",
         });
       } catch (e: any) {
@@ -82,15 +83,17 @@ const logPrefix = "🎯 [MATCH/START]";
       }
     } else {
       // 솔로 큐
-      const { ticketId } = mqm.joinQueueSolo(username, mapId, policy);
+      const { ticketID } = mqm.joinQueueSolo(username, mapId, policy);
+
+      MatchQueueNotificationService.notifyMatchQueueJoined(false, mapId, username, policy, ticketID);
       console.log(
-        `${logPrefix} ENQUEUE SOLO user=${username} mapId=${mapId}(${def.key}) policy=${policy} ticket=${ticketId}`
+        `${logPrefix} ENQUEUE SOLO user=${username} mapId=${mapId}(${def.key}) policy=${policy} ticket=${ticketID}`
       );
       // HTTP는 얇은 ACK만 (실제 UI 갱신은 WS QueueJoined로 처리)
       return res.status(202).json({
         success: true,
         mode: "solo",
-        ticketId,
+        ticketID,
         message: "queued",
       });
     }

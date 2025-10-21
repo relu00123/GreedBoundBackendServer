@@ -334,6 +334,12 @@ export function setupClientSocketMessageHandler(ws: WebSocket) {
             MatchQueueMessageHandler.handleMatchStartRequest(ws, msg);
             break;
           }
+
+          case "MatchCancelRequest" : 
+          {
+            MatchQueueMessageHandler.handleMatchCancelRequest(ws, msg);
+            break; 
+          }
         
            
 

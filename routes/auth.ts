@@ -9,6 +9,7 @@ import db from "../config/db";
 import { BroadcastSocketMessageUtils } from "../utils/BroadcastSocketMessageUtils";
 import { ClientSocketMessageSender } from "../ws/ClientSocketMessageSender";
 import { GlobalJobQueue } from "../utils/GlobalJobQueue";
+import { ClientGamePhase } from "../constants/ClientGamePhase";
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ router.post("/login", async (req: Request, res: Response) => {
       }
 
       const token = jwt.sign({ username }, process.env.JWT_SECRET as string, { expiresIn: "24h" });
-      const session: PlayerSession = { username, classType: "Knight", gamePhase : "GameInitializing" };
+      const session: PlayerSession = { username, classType: "Knight", gamePhase : ClientGamePhase.GameInitializing };
       playerManager.registerPlayerSession(token, session);
 
       console.log(`✅ [Login] ${username} 접속 완료`);

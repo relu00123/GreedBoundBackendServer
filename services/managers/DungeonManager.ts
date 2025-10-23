@@ -171,7 +171,7 @@ export class DungeonManager {
 
         if (readySecret) args.push(`-readySecret=${readySecret}`);
 
-        // ⬇︎ 여기서 만든 env를 실제로 넘겨야 합니다.
+        // ⬇︎ 여기서 만든 env를 실제로 넘겨야 한다.
         const env = {
             ...process.env,
             DUNGEON_ID: session.dungeonId,
@@ -290,6 +290,8 @@ export class DungeonManager {
     // 이때 서버주소, 서버에 입장하기위한 Unique 한 토큰들이 포함된다. 
     async whenReady(dungeonId: DungeonId, timeoutMs = 100000, pollMs = 100): Promise<DungeonSession> {
         const t0 = Date.now();
+
+        // For문을 돌면서 DS가 정말 실행 준비 완료상태인지 기다리는 루프이다. 
         for (;;) {
             const s = this.store.getSessionByDungeonId(dungeonId);
             if (!s) throw new Error("DUNGEON_GONE");

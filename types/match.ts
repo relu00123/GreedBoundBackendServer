@@ -10,7 +10,7 @@ export type TeamId   = string & { readonly [__TeamIdBrand]: void };
 export type TicketId = string & { readonly [__TicketIdBrand]: void };
 
 export const TEAM_MAX = 3 as const;                 // 최대 팀에 들어올 수 있는 인원수
-export const TEAMS_PER_MATCH_MAX = 1 as const;      // 한 던전에 들어올 수 있는 팀의 수
+export const TEAMS_PER_MATCH_MAX = 2 as const;      // 한 던전에 들어올 수 있는 팀의 수
 
 export enum TeamJoinPolicy {
     Open = "Open",     // 다른 사람 합류 허용

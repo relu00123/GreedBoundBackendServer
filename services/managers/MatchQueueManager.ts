@@ -67,32 +67,31 @@ export class MatchQueueManager {
       // DS 준비 완료까지 대기 → 최신 세션 반환
       const s = await dm.whenReady(dungeonId, 150_000, 100);
 
-      // 여기서 부터는 던전 준비가 끝난 뒤 실행되는 코드. 
+      // // 여기서 부터는 던전 준비가 끝난 뒤 실행되는 코드. 
 
-      // /dungeonReady 로 갱신됐을 수 있는 주소를 우선 사용
-      const host = s.serverHost ?? serverAddr.host;
-      const port = s.serverPort ?? serverAddr.port;
+      // // /dungeonReady 로 갱신됐을 수 있는 주소를 우선 사용
+      // const host = s.serverHost ?? serverAddr.host;
+      // const port = s.serverPort ?? serverAddr.port;
 
-      // DS 접속 정보 전송 직전
-      for (const team of match.teams) {
-        for (const username of team.members) {
-          const session = PlayerManager.getInstance("MatchQueueManager").getPlayerSessionByUserName(username);
-          if (session?.ws) {
-            console.log(`[MQM] Broacasting ChangeClient GamePhase to Joining Dungeon`);
-            PlayerManager.getInstance("MatchQueueManager").changeClientGamePhase(session.ws, ClientGamePhase.JoiningDungeon);
-          }
-        }
-      }
+      // for (const team of match.teams) {
+      //   for (const username of team.members) {
+      //     const session = PlayerManager.getInstance("MatchQueueManager").getPlayerSessionByUserName(username);
+      //     if (session?.ws) {
+      //       console.log(`[MQM] Broacasting ChangeClient GamePhase to Joining Dungeon`);
+      //       PlayerManager.getInstance("MatchQueueManager").changeClientGamePhase(session.ws, ClientGamePhase.JoiningDungeon);
+      //     }
+      //   }
+      // }
 
-      // B단계: 클라들에게 접속 정보 전송
-      ClientSocketMessageSender.broadcastJoinDungeon(
-        match,
-        { host, port },
-        dungeonId,
-        joinCredsByUser
-      );
+      // // B단계: 클라들에게 접속 정보 전송
+      // ClientSocketMessageSender.broadcastJoinDungeon(
+      //   match,
+      //   { host, port },
+      //   dungeonId,
+      //   joinCredsByUser
+      // );
 
-      console.log(`[MQM] JoinDungeon sent: ${match.matchId} -> ${host}:${port}`);
+      // console.log(`[MQM] JoinDungeon sent: ${match.matchId} -> ${host}:${port}`);
     } catch (e: any) {
       ClientSocketMessageSender.broadcastMatchFailed(
         match,

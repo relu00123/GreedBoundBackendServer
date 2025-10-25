@@ -1,7 +1,7 @@
 // DungonManager.ts
 import { DungeonSessionStore } from "../stores/DungeonSessionStore";
 import { PortPool } from "../../utils/PortPool";
-import type { DungeonStartResult, DungeonSession, DungeonId } from "../../types/dungeon";
+import type { DungeonStartResult, DungeonSession, DungeonId, DungeonToken } from "../../types/dungeon";
 import type { Match, MapId, UserId, MatchId} from "../../types/match";
 import { TeamId } from "../../types/match";
 import { JoinCredentialsByUser } from "../../types/network";
@@ -9,6 +9,8 @@ import { genDungeonId, genDungeonAccessToken } from "../../utils/id";
 import { getUEMapPath } from "../../constants/GameMapCatalog";
 import * as child_process from "child_process";
 import * as net from "net";
+import crypto from "crypto"
+import { WebSocket } from "ws";
 
 
 type DungeonManagerConfig = {
@@ -18,13 +20,15 @@ type DungeonManagerConfig = {
 }
 
  
-
 export class DungeonManager {
     private static _inst: DungeonManager | null = null;
     static getInstance() { return this._inst ?? (this._inst = new DungeonManager()); }
 
     private store = DungeonSessionStore.getInstance();
     private procs = new Map<DungeonId, child_process.ChildProcess>();
+
+    private dungeonSocketByDungeonId = new Map<DungeonId, WebSocket>();
+    private dungeonIdBySocket = new Map<WebSocket, DungeonId>(); 
 
     private serverHost = process.env.DUNGEON_HOST || "127.0.0.1";
     private portPool = new PortPool(7700, 7799);
@@ -47,6 +51,7 @@ export class DungeonManager {
         // 1) 포트/주소 할당
         const port = this.portPool.reserve();
         if (port == null) throw new Error("No free port for dungeon");
+
         const serverHost = this.serverHost;              // 외부 접속 가능한 호스트(도메인/IP)
         const serverAddrStr = `${serverHost}:${port}`;   // 세션에는 문자열로도 보관
         const serverAddr = { host: serverHost, port };   // 호출부/브로드캐스트에는 객체로 전달
@@ -55,7 +60,10 @@ export class DungeonManager {
         //    (이 함수는 네 프로젝트에 이미 있음)
         const { tokensByUser, teamIdByUser } = this.issueTokensAndTeamMap(match);
 
-        // 3) 팀ID → 팀인원 수 매핑을 만들고,
+        // 3) dungeonToken 생성
+        const  dungeonToken : DungeonToken = crypto.randomBytes(32).toString("hex");
+
+        // 4) 팀ID → 팀인원 수 매핑을 만들고,
         //    tokensByUser + teamIdByUser를 합쳐 유저별 접속 자격(joinCredsByUser) 생성
         const teamSizeByTeamId: Record<TeamId, number> = {};
         for (const t of match.teams) {
@@ -69,7 +77,7 @@ export class DungeonManager {
             joinCredsByUser[userId as UserId] = { joinToken, teamId, teamSize };
         }
 
-        // 4) 세션 저장 (기존 필드는 그대로 유지)
+        // 5) 세션 저장 (기존 필드는 그대로 유지)
         const session: DungeonSession = {
             dungeonId,
             matchId: match.matchId,
@@ -80,12 +88,13 @@ export class DungeonManager {
             serverAddr: serverAddrStr, // 문자열 필드 유지
             serverHost,
             serverPort: port,
+            dungeonToken,
             tokensByUser,              // ← 기존 verifyUserToken 등에서 사용
             teamIdByUser,
         };
         this.store.saveSession(session);
 
-        // 5) DS 스폰/준비 (실패 시 정리)
+        // 6) DS 스폰/준비 (실패 시 정리)
         this.spawnAndPrepare(session).catch((err) => {
             this.store.endSession(session.dungeonId, "aborted");
             if (typeof session.serverPort === "number") {
@@ -100,7 +109,7 @@ export class DungeonManager {
             );
         });
 
-        // 6) 호출자에 반환: dungeonId, {host,port}, 유저별 접속 자격
+        // 7) 호출자에 반환: dungeonId, {host,port}, 유저별 접속 자격
         return { dungeonId, serverAddr, joinCredsByUser };
     }
 
@@ -165,6 +174,7 @@ export class DungeonManager {
             `-matchid=${session.matchId}`,
             `-readyUrl=${readyUrl}`,
             `-host=${session.serverHost || "127.0.0.1"}`, 
+            `-dungeontoken=${session.dungeonToken}`,
         ];
 
         console.log("[DM] spawn:", cmd, args.join(" "));
@@ -257,6 +267,79 @@ export class DungeonManager {
         }
         return ended;
     }
+
+    /**
+     * DS(WebSocket)가 처음 붙을 때 호출.
+     * dungeonToken으로 인증해서 dungeonId를 알아내고,
+     * dungeonId ↔ ws 매핑을 등록한다.
+     * 성공하면 dungeonId 리턴, 실패하면 null 리턴.
+     */
+    public registerDedicatedSocket(dungeonToken: DungeonToken, ws: WebSocket): DungeonId | null {
+        const session = this.store.getSessionByToken(dungeonToken);
+        if (!session) {
+        console.warn(`[DungeonManager] reject DS socket: invalid dungeonToken`);
+        return null;
+        }
+
+        const dungeonId = session.dungeonId;
+
+        // 이미 소켓이 등록돼 있으면 교체 (재연결 시나리오)
+        const oldWs = this.dungeonSocketByDungeonId.get(dungeonId);
+        if (oldWs && oldWs !== ws) {
+        try { oldWs.close(); } catch {}
+        this.dungeonIdBySocket.delete(oldWs);
+        }
+
+        this.dungeonSocketByDungeonId.set(dungeonId, ws);
+        this.dungeonIdBySocket.set(ws, dungeonId);
+
+        console.log(
+        `[DungeonManager] DS socket registered dng=${dungeonId} port=${session.serverPort}`
+        );
+
+        return dungeonId;
+    }
+
+    /**
+     * DS WebSocket이 끊길 때 호출.
+     * 어떤 던전인지 찾아서 crash 처리/포트 반납까지 담당 가능.
+     */
+    public unregisterDedicatedSocket(ws: WebSocket) {
+        const dungeonId = this.dungeonIdBySocket.get(ws);
+        if (!dungeonId) {
+        console.log(`[DungeonManager] unregisterDedicatedSocket: unknown socket`);
+        return;
+        }
+
+        this.dungeonIdBySocket.delete(ws);
+        this.dungeonSocketByDungeonId.delete(dungeonId);
+
+        const s = this.store.getSessionByDungeonId(dungeonId);
+
+        console.log(
+        `[DungeonManager] DS socket disconnected dng=${dungeonId} status=${s?.status}`
+        );
+
+        // 실제 인스턴스가 아직 running 중이었다면 crash로 처리하고 자원 회수
+        if (s && s.status !== "ended") {
+        this.store.endSession(dungeonId, "crash");
+        if (typeof s.serverPort === "number") {
+            this.portPool.release(s.serverPort);
+        }
+        }
+    }
+
+    public sendToDungeon(dungeonId: DungeonId, msg: any): boolean {
+        const ws = this.dungeonSocketByDungeonId.get(dungeonId);
+        if (!ws) return false;
+        try {
+        ws.send(JSON.stringify(msg));
+        return true;
+        } catch {
+        return false;
+        }
+    }
+
 
     private issueTokensAndTeamMap(match: Match) {
         const tokensByUser: Record<UserId, string> = {};

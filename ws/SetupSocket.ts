@@ -12,6 +12,7 @@ import { ClientSocketMessageSender } from "../ws/ClientSocketMessageSender";
 import { PlayerSession } from "../types/player";
 import { GlobalJobQueue } from "../utils/GlobalJobQueue";
 import { PartyNotificationService } from "./services/PartyNotificationService";
+import { DungeonToken } from "../types/dungeon";
 
 export function setupSocket(wss : WebSocketServer) {
     wss.on("connection", (ws: WebSocket, req) => {
@@ -31,14 +32,15 @@ export function setupSocket(wss : WebSocketServer) {
                 case "dedicated": {
                     GlobalJobQueue.execute(async () => {
 
-                        // ws저장
-                        //const success = DungeonManager.getInstance().registerDedicatedSocket(token, ws);
+                        const dungeonId = DungeonManager.getInstance().registerDedicatedSocket(token, ws);
 
-                        // if (!success) {
-                        //     ws.send(JSON.stringify({ error : "Invalid or expired session"}));
-                        //     ws.close();
-                        //     return;
-                        // }
+                        if (!dungeonId) {
+                            ws.send(JSON.stringify({ error: "Invalid or expired dungeon session" }));
+                            ws.close();
+                            return;
+                        }
+
+                        console.log(`[SetupSocket] DedicatedServer Connected dng=${dungeonId}`);
 
                         // Dedicated ws에 MessageHandler등록 
                         setupDedicatedSocketMessageHandler(ws);
@@ -81,9 +83,6 @@ export function setupSocket(wss : WebSocketServer) {
                                 // DedicatedSession 관리중인 것 삭제 및 DedicatedServer 로직 종료 필요
                                 // 로그도 조금더 자세하게 작성해줘야 함. 어떤 DedicatedServer가 종료된 것인지. 
                                 console.log(`[SetupSocket] Client Disconnected`);
-
-                              
-
 
                                 // 본인을 제외한 모든 접속중인 Client에게 퇴장 사실을 알림
                                 BroadcastSocketMessageUtils.broadcastToAllLobbyMemberExceptSender(ws, {

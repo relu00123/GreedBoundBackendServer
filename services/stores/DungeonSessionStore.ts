@@ -1,5 +1,5 @@
 // services/stores/DungeonSessionStore.ts
-import type { DungeonId, DungeonSession, DungeonStatus } from "../../types/dungeon";
+import { DungeonToken, type DungeonId, type DungeonSession, type DungeonStatus } from "../../types/dungeon";
 import type { MatchId, UserId } from "../../types/match";
 
 export class DungeonSessionStore {
@@ -18,6 +18,8 @@ export class DungeonSessionStore {
   private dungeonIdByMatchId  = new Map<MatchId, DungeonId>();
   /** userId    -> dungeonId (O(1)로 유저가 속한 던전 찾기) */
   private dungeonIdByUserId   = new Map<UserId, DungeonId>();
+  /** dungeonToken -> dungeonId  */
+  private dungeonIdByToken = new Map<DungeonToken, DungeonId>();
 
   // ── 내부 헬퍼(세션-인덱스 동기화) ────────────────────────────────────
   /** 세션 내 모든 유저(토큰/팀) 집합 */
@@ -53,10 +55,15 @@ export class DungeonSessionStore {
       }
       // 기존 유저 인덱스 제거 후 새로 반영
       this.removeSessionUsersFromIndex(prev);
+
+      if (prev.dungeonToken && prev.dungeonToken !== session.dungeonToken) {
+        this.dungeonIdByToken.delete(prev.dungeonToken);
+      }
     }
 
     this.sessionsByDungeonId.set(session.dungeonId, session);
     this.dungeonIdByMatchId.set(session.matchId as MatchId, session.dungeonId);
+    this.dungeonIdByToken.set(session.dungeonToken, session.dungeonId);
     this.addSessionUsersToIndex(session);
   }
 
@@ -82,6 +89,12 @@ export class DungeonSessionStore {
   getSessionByUserId(userId: UserId) {
     const dId = this.dungeonIdByUserId.get(userId);
     return dId ? this.sessionsByDungeonId.get(dId) : undefined;
+  }
+
+  // 토큰으로 세션 찾기
+  getSessionByToken(token : DungeonToken) : DungeonSession | undefined {
+    const dungeonID = this.dungeonIdByToken.get(token);
+    return dungeonID ? this.sessionsByDungeonId.get(dungeonID) : undefined;
   }
 
   /** 유저 ID로 던전 ID만 조회(O(1)) */
@@ -125,6 +138,7 @@ export class DungeonSessionStore {
 
     this.removeSessionUsersFromIndex(s);
     this.dungeonIdByMatchId.delete(s.matchId as MatchId);
+    this.dungeonIdByToken.delete(s.dungeonToken);
     this.sessionsByDungeonId.delete(dungeonId);
     return true;
   }
